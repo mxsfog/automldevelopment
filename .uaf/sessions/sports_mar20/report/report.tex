@@ -1,0 +1,207 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage[main=russian,english]{babel}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=green!60!black,
+    pdfauthor={UAF AutoResearch Framework},
+    pdftitle={Research Report: Session sports\_mar20},
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    xrightmargin=1em,
+}
+
+\definecolor{passcolor}{rgb}{0.1,0.6,0.1}
+\definecolor{failcolor}{rgb}{0.7,0.1,0.1}
+\definecolor{warncolor}{rgb}{0.8,0.5,0.0}
+\definecolor{partialcolor}{rgb}{0.5,0.5,0.8}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UAF Research Report}
+\fancyhead[R]{\small sports\_mar20}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{
+    \Large\textbf{Research Report}\\[0.5em]
+    \large Session sports\_mar20\\[0.3em]
+    \normalsize Session: \texttt{sports\_mar20}
+}
+\author{Universal AutoResearch Framework v2.0}
+\date{2026-03-20 12:08 UTC}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Executive Summary}
+
+\textit{Секция Executive Summary не была сгенерирована Claude Code.}
+
+
+
+\section{Task Description}
+
+\begin{description}
+    \item[Задача:] Session sports\_mar20
+    \item[Тип:] tabular\_classification
+    \item[Целевая метрика:] \texttt{metric}
+        (maximize)
+    \item[Датасет:] ---
+    \item[Целевая переменная:] \texttt{---}
+\end{description}
+
+
+
+
+\section{Experiment Results}
+
+\subsection{Overview}
+
+\begin{table}[H]
+\centering
+\caption{Сводка сессии}
+\begin{tabular}{lrrrr}
+\toprule
+Итого runs & Completed & Failed & Partial & Best metric \\
+\midrule
+21 & \textcolor{passcolor}{20}
+    & \textcolor{failcolor}{1}
+    & \textcolor{partialcolor}{0}
+    & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\section{Analysis and Findings}
+
+
+
+
+
+\subsection{Improvement Hypotheses}
+
+\begin{description}
+    \item[\textbf{H-07} (P1):] Большинство runs failed: нужна debugging session перед полноценным исследованием
+    \textit{Основание: failed=1, completed=0}
+\end{description}
+
+
+
+
+\section{Code Quality Report}
+
+\begin{table}[H]
+\centering
+\caption{Отчёт ruff (ruff 0.15.7)}
+\begin{tabular}{lr}
+\toprule
+Показатель & Значение \\
+\midrule
+Файлов проверено & 8 \\
+Чистых файлов & 8 \\
+Clean rate & \textcolor{passcolor}{100.0\%} \\
+Нарушений (после fix) & \textcolor{passcolor}{0} \\
+Файлов с нарушениями & 0 \\
+Целевой показатель достигнут & \textcolor{passcolor}{Да} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\section{Reproducibility}
+
+\begin{description}
+    \item[Session ID:] \texttt{sports\_mar20}
+    \item[Дата сессии:] 2026-03-20 12:08 UTC
+    \item[MLflow experiment:] \texttt{uaf/sports\_mar20}
+    \item[Claude модель:] \texttt{claude-opus-4}
+    \item[Random seed:] ---
+    \item[DVC коммит:] \texttt{---}
+\end{description}
+
+\subsection*{MLflow Run IDs}
+
+\begin{lstlisting}
+0b05cc791e874066946ea32d493364b5
+5c851b86aab34d1381cb1cf31f6b6b41
+5b5a24470fee4e38b708856d2cf9d810
+752d620654c5433997e4cd44a2a7540e
+f896b7c28c744062a323b2fd9cd90acb
+7a2961d2b0214a66af97190c9bd75043
+83cf75e812064126808d1adb2f895a34
+7ffed1baf2c3409f8a6cb00ee65e5b72
+7c2a0471d5d940f99b9606288db6fcf0
+fe45b41c2796438588de2abe0a297b02
+31608c3f65c44adda07a1c069cf14035
+b0425ec069c94fe4aeb27fe120f340fc
+1fb5811610584b7f9d498ac439ed3baf
+965ae9c6bda54c38ae18b02031554839
+54047b6a1f224afc9e9d8f929fc1968c
+b072e5e930f243d69d091045a223937f
+c37c257d172c4fcca7c337b743cb75c0
+903d9794ed9740e08f395e0966b1877b
+370713a8c5314bcc9d7ede42d49befc5
+d319c4876d154f47be9684d1ca3d4b1e
+51f7374270cf4bd697f46fb074b308b3
+b5449b9349504273970141266f14a489
+d500c788fe0341b98d691f49a8025517
+26367f18223543a2a2df02d02d247511
+b6244e9cc2b5485b8fe29e5ba01e700d
+ab78c96444be4798ae3e70e8bac3843b
+03adf5f92cab4d06a13b0146802061ab
+905e23308701476fbf7021d2401f4066
+053e9b327deb489592474a44c036146f
+b3472fc2bc584fe3ac69e631d6d17054
+\end{lstlisting}
+
+
+
+\end{document}

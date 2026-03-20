@@ -1,0 +1,29 @@
+{
+  "version": "2.1",
+  "session_id": "sports_10h",
+  "iterations_used": 0,
+  "iterations_limit": 20,
+  "time_elapsed": 120.2,
+  "time_limit": 28800.0,
+  "hard_stop": false,
+  "hard_stop_reason": "",
+  "phase": "monitoring",
+  "alerts": [],
+  "hints": [],
+  "software_health": {
+    "mlflow_reachable": true,
+    "disk_free_gb": 921.39,
+    "process_alive": true,
+    "last_stdout_age_seconds": 120.2
+  },
+  "data_quality": {
+    "schema_hash": "",
+    "files_modified": false
+  },
+  "metrics_history": [],
+  "budget_fraction_used": 0.0042,
+  "warning_triggered": false,
+  "convergence_signal": 0.0,
+  "runs_per_iteration": 1,
+  "timestamp": 1773998031.957127
+}

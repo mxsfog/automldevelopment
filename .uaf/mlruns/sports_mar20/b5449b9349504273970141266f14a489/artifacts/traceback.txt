@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/mnt/d/automl-research/.uaf/sessions/sports_mar20/step_1_3_linear_baseline.py", line 188, in <module>
+    for feat, coef in zip(FEATURES, coefs, strict=True):
+ValueError: zip() argument 2 is shorter than argument 1
