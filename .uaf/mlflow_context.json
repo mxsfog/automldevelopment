@@ -1,7 +1,7 @@
 {
   "tracking_uri": "http://127.0.0.1:5000",
-  "experiment_id": "2",
-  "experiment_name": "uaf/sports_10h",
-  "session_id": "sports_10h",
-  "planning_run_id": "76570628b6c245dca701df8773ccd4ff"
+  "experiment_id": "12",
+  "experiment_name": "uaf/chain_6_mar20_1955",
+  "session_id": "chain_6_mar20_1955",
+  "planning_run_id": "edf0830506b34683823b07d1e68b5ec8"
 }
