@@ -56,10 +56,10 @@ data_schema.json не предоставлен.
 - **Method:** dummy_classifier
 - **Metric:** roi
 - **Critical:** true
-- **Status:** pending
-- **MLflow Run ID:** null
-- **Result:** (заполняется Claude Code)
-- **Conclusion:** (заполняется Claude Code)
+- **Status:** done
+- **MLflow Run ID:** 15193895325f4dc6aebb47d8eebe961b
+- **Result:** roi_mean=-2.1120, roi_std=4.3186, accuracy=0.5459
+- **Conclusion:** DummyClassifier (always predict "won") даёт ROI=-2.11%. Majority class = "won" (53.9-55.6%). Это lower bound — любая модель должна бить этот уровень.
 
 
 #### Step 1.2 — Rule-based baseline
@@ -67,10 +67,10 @@ data_schema.json не предоставлен.
 - **Method:** threshold_rule
 - **Metric:** roi
 - **Critical:** false
-- **Status:** pending
-- **MLflow Run ID:** null
-- **Result:** (заполняется Claude Code)
-- **Conclusion:** (заполняется Claude Code)
+- **Status:** done
+- **MLflow Run ID:** 2d9ec63bfdd041bf9d0bb35637eb54da
+- **Result:** best_threshold=0, roi_mean=-2.12%, coverage=31.7%
+- **Conclusion:** ML_Edge > 0 даёт ROI=-2.12%, не лучше dummy. Платформенный ML_Edge не содержит полезного сигнала для фильтрации ставок. Увеличение порога снижает coverage и ухудшает ROI.
 
 
 #### Step 1.3 — Linear baseline
@@ -78,10 +78,10 @@ data_schema.json не предоставлен.
 - **Method:** logistic_regression
 - **Metric:** roi
 - **Critical:** true
-- **Status:** pending
-- **MLflow Run ID:** null
-- **Result:** (заполняется Claude Code)
-- **Conclusion:** (заполняется Claude Code)
+- **Status:** done
+- **MLflow Run ID:** f5bc9b706744477b8c0672c31e449101
+- **Result:** roi_mean=1.88% (threshold=0.65), auc_mean=0.758
+- **Conclusion:** LogisticRegression с 7 фичами (Odds, ML_P_Model, ML_P_Implied, ML_Edge, ML_EV, Is_Parlay, Outcomes_Count) даёт ROI=+1.88% при порогe 0.65. AUC=0.758 стабилен. Первый положительный ROI — модель начинает отбирать прибыльные ставки.
 
 
 #### Step 1.4 — Non-linear baseline
@@ -89,10 +89,10 @@ data_schema.json не предоставлен.
 - **Method:** catboost_default
 - **Metric:** roi
 - **Critical:** true
-- **Status:** pending
-- **MLflow Run ID:** null
-- **Result:** (заполняется Claude Code)
-- **Conclusion:** (заполняется Claude Code)
+- **Status:** done
+- **MLflow Run ID:** 89387127aa6c4166a7482cd18ee2b7d7
+- **Result:** roi_mean=2.81% (threshold=0.55), auc_mean=0.766
+- **Conclusion:** CatBoost с 10 фичами (7 num + 3 cat) даёт ROI=+2.81%. Feature importance: Odds доминирует (80.8%), ML_P_Implied (9.1%), Sport (3.9%). Market и is_parlay не используются (importance=0). Лучший результат Phase 1.
 
 
 
@@ -102,8 +102,12 @@ data_schema.json не предоставлен.
 
 
 
-*Гипотезы о фичах будут сгенерированы Claude Code на основе data_schema.json*
-*после завершения Phase 1 (max 5 шагов)*
+#### Step 2.1-2.5 — Shadow Feature Tests
+- **Groups tested:** implied_value, time_features, odds_transforms, sport_market_winrate, elo_features
+- **Status:** done
+- **MLflow Run ID:** 80d6e1a6319e4391b692b5ec800cd1ad
+- **Result:** Все 5 групп отклонены (delta < 0 для всех)
+- **Conclusion:** Базовый feature set CatBoost (Odds, ML_P_Model, ML_P_Implied, ML_Edge, ML_EV, Outcomes_Count, USD, Sport, Market, Is_Parlay) оптимален. Дополнительные фичи (implied_prob, value_gap, hour/dow, log_odds, sport_winrate, ELO) не улучшают ROI по shadow feature trick.
 
 
 ### Phase 3: Model Optimization (MANDATORY)
@@ -115,26 +119,60 @@ data_schema.json не предоставлен.
 - **Method:** optuna_tpe
 - **Metric:** roi
 - **Critical:** false
-- **Status:** pending
-- **MLflow Run ID:** null
-- **Result:** null
-- **Conclusion:** null
+- **Status:** done
+- **MLflow Run ID:** a93d5fab03494b2ca4f020cf57ff1ab6
+- **Result:** roi_mean=2.52% (threshold=0.57), auc_mean=0.764, 40 trials
+- **Conclusion:** Optuna нашла конфигурацию с roi=2.52%, что не превышает дефолтный CatBoost (2.81%). Лучшие параметры: depth=5, lr=0.25, iterations=553, без class_weights. Высокая дисперсия по фолдам (от -2.3% до +8.5%) указывает на нестабильность ROI-метрики и ограниченный сигнал в данных.
 
 ## Current Status
 - **Active Phase:** Phase 1
-- **Completed Steps:** 0/5
-- **Best Result:** null
-- **Budget Used:** 0%
+- **Completed Steps:** 6/6 (Phase 1 done, Phase 2 done, Phase 3 done)
+- **Best Result:** roi_mean=+2.81% (CatBoost default, threshold=0.55)
+- **Budget Used:** 20%
 - **smoke_test_status:** pending
 
 ## Iteration Log
-(заполняется Claude Code после каждой итерации)
+1. **Step 1.1** (DummyClassifier): roi_mean=-2.11%, roi_std=4.32%, acc=0.5459. Run: 15193895325f4dc6aebb47d8eebe961b
+2. **Step 1.2** (Rule-based ML_Edge>0): roi_mean=-2.12%, coverage=31.7%. Run: 2d9ec63bfdd041bf9d0bb35637eb54da
+3. **Step 1.3** (LogisticRegression): roi_mean=+1.88%, auc=0.758, threshold=0.65. Run: f5bc9b706744477b8c0672c31e449101
+4. **Step 1.4** (CatBoost default): roi_mean=+2.81%, auc=0.766, threshold=0.55. Run: 89387127aa6c4166a7482cd18ee2b7d7
+5. **Phase 2** (Shadow Feature Trick): 5 групп протестировано, 0 принято. Feature set не изменён. Run: 80d6e1a6319e4391b692b5ec800cd1ad
+6. **Step 3.1** (Optuna TPE, 40 trials): roi_mean=+2.52%, auc=0.764. Не превзошёл дефолтный CatBoost. Run: a93d5fab03494b2ca4f020cf57ff1ab6
 
 ## Accepted Features
-(заполняется Claude Code после Phase 2)
+Базовый feature set (из Phase 1, без изменений после Phase 2):
+- **Числовые:** Odds, ML_P_Model, ML_P_Implied, ML_Edge, ML_EV, Outcomes_Count, USD
+- **Категориальные:** Sport, Market, Is_Parlay
 
 ## Final Conclusions
-(заполняется Claude Code по завершении)
+
+### Результаты
+| Step | Модель | ROI mean | AUC | Threshold |
+|------|--------|----------|-----|-----------|
+| 1.1 | DummyClassifier | -2.11% | - | - |
+| 1.2 | Rule-based (ML_Edge>0) | -2.12% | - | 0 |
+| 1.3 | LogisticRegression | +1.88% | 0.758 | 0.65 |
+| 1.4 | CatBoost (default) | **+2.81%** | 0.766 | 0.55 |
+| 3.1 | CatBoost (Optuna) | +2.52% | 0.764 | 0.57 |
+
+### Лучшая модель
+CatBoost с дефолтными параметрами (iterations=500, depth=6, lr=0.1, auto_class_weights=Balanced) при threshold=0.55.
+
+### Ключевые наблюдения
+1. **Odds — доминирующий признак** (80.8% feature importance). Модель фактически учится фильтровать ставки по коэффициентам.
+2. **ML_P_Implied — второй по важности** (9.1%). Вычисленная платформой implied probability содержит дополнительный сигнал.
+3. **Feature engineering не помог.** Все 5 групп новых фичей (implied_value, time, odds_transforms, sport_winrate, ELO) ухудшили ROI по shadow feature trick.
+4. **Optuna не улучшила дефолты.** 40 trials оптимизации не превзошли baseline CatBoost — сигнал в данных ограничен.
+5. **ROI = +2.81% < цели 10%.** Текущий feature set не содержит достаточно информации для достижения целевого ROI.
+6. **Парлаи убыточны** (ROI=-19.6%), синглы прибыльны (ROI=+2.3%). Фильтрация по is_parlay — простой, но эффективный шаг.
+7. **Высокая дисперсия ROI по фолдам** (от -6.9% до +8.5%) указывает на нестабильность метрики.
+
+### Рекомендации для дальнейшей работы
+1. Сегментный анализ: отдельные модели для разных Sport (Soccer, Tennis, Basketball)
+2. Фильтрация парлаев: ставить только на синглы (ROI +2.3% vs -19.6%)
+3. Расширение данных: больше исторических данных для стабилизации ROI
+4. Альтернативные ML-модели: LightGBM, XGBoost, ensemble
+5. Калибровка вероятностей: Platt scaling или isotonic regression для лучшего threshold selection
 
 ---
 
