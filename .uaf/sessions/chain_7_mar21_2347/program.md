@@ -158,9 +158,9 @@ Best roi = **24.90881477935688**.
 
 ## Current Status
 - **Active Phase:** Phase 4 (chain continuation)
-- **Completed Steps:** 2/5
-- **Best Result:** ROI=25.8347% (step 4.1, odds-bucket segment thresholds, n=362)
-- **Budget Used:** 10%
+- **Completed Steps:** 7/5
+- **Best Result:** ROI=26.9345% (step 4.6, shrunken_segment_thresholds shrink=0.5, n=372)
+- **Budget Used:** 50%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -169,6 +169,17 @@ Best roi = **24.90881477935688**.
 |------|----------|----------|-------|---------------|
 | 4.0 | Chain verify (pipeline.pkl) | 24.9088% | 0.00% | 1029f5186e5b4e17b2d7db1362b67d0d |
 | 4.1 | Odds-bucket segment Kelly (low/mid/high) | 25.8347% (n=362) | +0.93% | 23a2af6af60a46cf89c50a86e86aff2c |
+| 4.2 | Lead-time features (+5 фичей) | 18.8545% (n=748) | -6.05% | 974eed08dcf34eb6af2fff34a6bfa02e |
+| 4.3 | Pre-match lead-hours filter sweep | 24.9088% (best=lead>0h) | 0.00% | eadde4ce04ae4257b40ddf397a757608 |
+| 4.4 | Deeper CatBoost (depth=9, lr=0.05, 1500 iter) | 4.1844% (n=3022) | -20.72% | 0cddc9870ae34f0e981e80c6a75ac9f7 |
+| 4.5 | Dual-agreement (CatBoost + platform ML_P_Model) | 21.7452% (n=38) | -3.16% | 302c6b91c57f4618a66be0d4a11aaf2a |
+| 4.6 | Shrunken segment thresholds (shrink=0.5) | 26.9345% (n=372) | +2.03% | 13248020e9b441efa46f5d9eefa0eaa9 |
+
+## Research Insights (plateau iteration 1)
+- **Найдено:** partial Kelly (0.5x) более робастен; favorite-longshot bias означает что high-odds переоценены букмекерами; calibration >> accuracy для Kelly ROI
+- **Гипотеза A:** Dual-agreement filter — CatBoost + платформенная модель (ml_p_model) должны одновременно давать edge
+- **Гипотеза B:** Partial Kelly threshold (0.25x Kelly fraction) — более консервативный отбор с учётом uncertainty
+- **Выбранная следующая попытка:** Dual-agreement filter — согласие двух независимых моделей сильнее одной
 
 ## Accepted Features
 (заполняется Claude Code после Phase 2)

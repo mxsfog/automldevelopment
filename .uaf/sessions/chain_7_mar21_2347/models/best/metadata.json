@@ -2,16 +2,11 @@
   "framework": "catboost",
   "model_file": "model.cbm",
   "pipeline_file": "pipeline.pkl",
-  "pipeline_class": "BestPipelineSegmented",
-  "roi": 25.8347,
+  "roi": 26.93452587681387,
   "auc": 0.7863418772377406,
   "threshold": null,
-  "segment_thresholds": {
-    "low": 0.495,
-    "mid": 0.635,
-    "high": 0.195
-  },
-  "n_bets": 362,
+  "approach": "shrunken_segments",
+  "n_bets": 372,
   "feature_names": [
     "Odds",
     "USD",
@@ -55,5 +50,5 @@
   },
   "sport_filter": [],
   "session_id": "chain_7_mar21_2347",
-  "step": "4.1"
+  "step": "4.6"
 }
