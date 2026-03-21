@@ -147,9 +147,9 @@ data_schema.json не предоставлен.
 
 ## Current Status
 - **Active Phase:** Phase 4
-- **Completed Steps:** 7/7
+- **Completed Steps:** 8/8
 - **Best Result:** ROI=24.91% (pre-match Kelly, step 4.5)
-- **Budget Used:** 55%
+- **Budget Used:** 60%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -167,6 +167,7 @@ data_schema.json не предоставлен.
 | 4.3 | Isotonic calibration + **Kelly criterion selection** | **12.24%** | **+4.90%** | dd5bd761384f4b8393033fa5e9465e90 |
 | 4.4 | Kelly fraction=0.5, thr=0.270 | **14.52%** | **+2.28%** | 9264a14912144aed8160c8cb21bc73da |
 | 4.5 | Pre-match filter + stable Kelly (min_bets=500) | **24.91%** | **+10.39%** | dc8e48815fb944c7b57b097bd5922c1a |
+| 4.6 | PM specialized model (train pm-only) + LightGBM ens | 7.44% | -17.46% | eb8b1989b11d45a989fee6a02fd866d7 |
 
 ## Accepted Features
 
