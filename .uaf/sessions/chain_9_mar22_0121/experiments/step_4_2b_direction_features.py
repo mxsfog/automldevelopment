@@ -1,0 +1,351 @@
+"""Step 4.2b — All-sports CatBoost + H/D/A direction features (clean).
+
+Гипотеза: добавить bet_direction (H/D/A/U) как категориальный признак к
+стандартной all-sports модели. Без target encoding, без leakage.
+Baseline: ROI=28.5833% (n=233).
+
+Почему не leakage: direction выводится из Match "Team A vs Team B" + Selection
+без использования результата ставки.
+"""
+
+import json
+import logging
+import os
+import random
+import sys
+from pathlib import Path
+
+import mlflow
+import numpy as np
+import pandas as pd
+from catboost import CatBoostClassifier
+from sklearn.metrics import roc_auc_score
+
+random.seed(42)
+np.random.seed(42)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger(__name__)
+
+MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
+EXPERIMENT_NAME = os.environ["MLFLOW_EXPERIMENT_NAME"]
+SESSION_ID = os.environ["UAF_SESSION_ID"]
+SESSION_DIR = Path(os.environ["UAF_SESSION_DIR"])
+BUDGET_FILE = Path(os.environ["UAF_BUDGET_STATUS_FILE"])
+DATA_DIR = Path("/mnt/d/automl-research/data/sports_betting")
+
+SEGMENT_THRESHOLDS = {"low": 0.475, "mid": 0.545, "high": 0.325}
+
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_experiment(EXPERIMENT_NAME)
+
+
+def check_budget() -> bool:
+    try:
+        status = json.loads(BUDGET_FILE.read_text())
+        return bool(status.get("hard_stop"))
+    except FileNotFoundError:
+        return False
+
+
+def extract_direction(match: str | None, selection: str | None) -> str:
+    """H/D/A из Match + Selection без использования результата."""
+    if pd.isna(selection) or pd.isna(match):
+        return "U"
+    sel = str(selection).strip().lower()
+    if sel == "draw":
+        return "D"
+    match_str = str(match)
+    if " vs " in match_str:
+        home_team = match_str.split(" vs ")[0].strip().lower()
+        away_team = match_str.split(" vs ")[1].strip().lower()
+        if sel[:8] == home_team[:8] or sel in home_team or home_team in sel:
+            return "H"
+        if sel[:8] == away_team[:8] or sel in away_team or away_team in sel:
+            return "A"
+    return "U"
+
+
+def load_raw_data() -> pd.DataFrame:
+    """Загрузка с Match + Selection из outcomes.csv."""
+    bets = pd.read_csv(DATA_DIR / "bets.csv")
+    outcomes = pd.read_csv(DATA_DIR / "outcomes.csv")
+    elo = pd.read_csv(DATA_DIR / "elo_history.csv")
+
+    exclude = {"pending", "cancelled", "error", "cashout"}
+    bets = bets[~bets["Status"].isin(exclude)].copy()
+
+    outcomes_first = outcomes.drop_duplicates(subset="Bet_ID", keep="first")[
+        ["Bet_ID", "Sport", "Market", "Start_Time", "Selection", "Match"]
+    ]
+    df = bets.merge(outcomes_first, left_on="ID", right_on="Bet_ID", how="left")
+    df["Created_At"] = pd.to_datetime(df["Created_At"], utc=True)
+    df["Start_Time"] = pd.to_datetime(df["Start_Time"], utc=True, errors="coerce")
+    df = df.sort_values("Created_At").reset_index(drop=True)
+
+    elo_agg = (
+        elo.groupby("Bet_ID")
+        .agg(
+            elo_max=("Old_ELO", "max"),
+            elo_min=("Old_ELO", "min"),
+            elo_mean=("Old_ELO", "mean"),
+            elo_std=("Old_ELO", "std"),
+            elo_count=("Old_ELO", "count"),
+            k_factor_mean=("K_Factor", "mean"),
+        )
+        .reset_index()
+    )
+    elo_agg["elo_diff"] = elo_agg["elo_max"] - elo_agg["elo_min"]
+    elo_agg["elo_ratio"] = elo_agg["elo_max"] / elo_agg["elo_min"].clip(1.0)
+    df = df.merge(elo_agg, left_on="ID", right_on="Bet_ID", how="left", suffixes=("", "_elo"))
+
+    # Добавить direction
+    logger.info("Вычисление bet_direction...")
+    df["bet_direction"] = [
+        extract_direction(m, s) for m, s in zip(df["Match"], df["Selection"], strict=False)
+    ]
+    return df
+
+
+def build_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Feature set = baseline + bet_direction + is_home/draw/away."""
+    feats = pd.DataFrame(index=df.index)
+    feats["Odds"] = df["Odds"]
+    feats["USD"] = df["USD"]
+    feats["log_odds"] = np.log(df["Odds"].clip(1.001))
+    feats["log_usd"] = np.log1p(df["USD"].clip(0))
+    feats["implied_prob"] = 1.0 / df["Odds"].clip(1.001)
+    feats["is_parlay"] = (df["Is_Parlay"] == "t").astype(int)
+    feats["outcomes_count"] = df["Outcomes_Count"].fillna(1)
+    feats["ml_p_model"] = df["ML_P_Model"].fillna(-1)
+    feats["ml_p_implied"] = df["ML_P_Implied"].fillna(-1)
+    feats["ml_edge"] = df["ML_Edge"].fillna(0.0)
+    feats["ml_ev"] = df["ML_EV"].clip(-100, 1000).fillna(0.0)
+    feats["ml_team_stats_found"] = (df["ML_Team_Stats_Found"] == "t").astype(int)
+    feats["ml_winrate_diff"] = df["ML_Winrate_Diff"].fillna(0.0)
+    feats["ml_rating_diff"] = df["ML_Rating_Diff"].fillna(0.0)
+    feats["hour"] = df["Created_At"].dt.hour
+    feats["day_of_week"] = df["Created_At"].dt.dayofweek
+    feats["month"] = df["Created_At"].dt.month
+    feats["odds_times_stake"] = feats["Odds"] * feats["USD"]
+    feats["ml_edge_pos"] = feats["ml_edge"].clip(0)
+    feats["ml_ev_pos"] = feats["ml_ev"].clip(0)
+    feats["elo_max"] = df["elo_max"].fillna(-1)
+    feats["elo_min"] = df["elo_min"].fillna(-1)
+    feats["elo_diff"] = df["elo_diff"].fillna(0.0)
+    feats["elo_ratio"] = df["elo_ratio"].fillna(1.0)
+    feats["elo_mean"] = df["elo_mean"].fillna(-1)
+    feats["elo_std"] = df["elo_std"].fillna(0.0)
+    feats["k_factor_mean"] = df["k_factor_mean"].fillna(-1)
+    feats["has_elo"] = df["elo_count"].notna().astype(int)
+    feats["elo_count"] = df["elo_count"].fillna(0)
+    feats["ml_edge_x_elo_diff"] = feats["ml_edge"] * feats["elo_diff"].clip(0, 500) / 500
+    feats["elo_implied_agree"] = (
+        feats["implied_prob"] - 1.0 / feats["elo_ratio"].clip(0.5, 2.0)
+    ).abs()
+    feats["Sport"] = df["Sport"].fillna("unknown")
+    feats["Market"] = df["Market"].fillna("unknown")
+    feats["Currency"] = df["Currency"].fillna("unknown")
+    # Новые direction фичи
+    feats["bet_direction"] = df["bet_direction"].fillna("U")
+    feats["is_home"] = (df["bet_direction"] == "H").astype(int)
+    feats["is_draw"] = (df["bet_direction"] == "D").astype(int)
+    feats["is_away"] = (df["bet_direction"] == "A").astype(int)
+    return feats
+
+
+def compute_kelly(proba: np.ndarray, odds: np.ndarray) -> np.ndarray:
+    b = odds - 1.0
+    return (proba * b - (1 - proba)) / b.clip(0.001)
+
+
+def calc_roi(df: pd.DataFrame, mask: np.ndarray) -> tuple[float, int]:
+    selected = df[mask]
+    if len(selected) == 0:
+        return -100.0, 0
+    won = selected["Status"] == "won"
+    total_stake = selected["USD"].sum()
+    total_payout = selected.loc[won, "Payout_USD"].sum()
+    roi = (total_payout - total_stake) / total_stake * 100 if total_stake > 0 else -100.0
+    return roi, int(mask.sum())
+
+
+def apply_shrunken_segments(
+    df: pd.DataFrame, kelly: np.ndarray, seg_thresholds: dict[str, float]
+) -> np.ndarray:
+    buckets = pd.cut(df["Odds"], bins=[0, 1.8, 3.0, np.inf], labels=["low", "mid", "high"])
+    mask = np.zeros(len(df), dtype=bool)
+    for bucket, t in seg_thresholds.items():
+        mask |= (buckets == bucket).values & (kelly >= t)
+    return mask
+
+
+def main() -> None:
+    if check_budget():
+        logger.info("hard_stop=true, выход")
+        sys.exit(0)
+
+    df_raw = load_raw_data()
+    n = len(df_raw)
+    train_end = int(n * 0.80)
+
+    train_df = df_raw.iloc[:train_end].copy()
+    test_df = df_raw.iloc[train_end:].copy()
+
+    # Direction stats для 1x2 Soccer test
+    test_1x2 = test_df[test_df["Market"] == "1x2"]
+    logger.info(
+        "Test 1x2 direction: %s",
+        dict(test_1x2["bet_direction"].value_counts()),
+    )
+
+    cat_features = ["Sport", "Market", "Currency", "bet_direction"]
+    x_train = build_features(train_df)
+    x_test = build_features(test_df)
+
+    y_train = (train_df["Status"] == "won").astype(int)
+    y_test = (test_df["Status"] == "won").astype(int)
+
+    feature_names = list(x_train.columns)
+    logger.info(
+        "Train: %d, Test: %d | Features: %d",
+        len(train_df),
+        len(test_df),
+        len(feature_names),
+    )
+
+    # Inner val split (last 20% of train) для early stopping
+    val_start = int(len(x_train) * 0.8)
+    x_sub_train = x_train.iloc[:val_start]
+    x_val = x_train.iloc[val_start:]
+    y_sub_train = y_train.iloc[:val_start]
+    y_val = y_train.iloc[val_start:]
+
+    with mlflow.start_run(run_name="phase4/step_4_2b_direction") as run:
+        mlflow.set_tag("session_id", SESSION_ID)
+        mlflow.set_tag("type", "experiment")
+        mlflow.set_tag("status", "running")
+        mlflow.set_tag("step", "4.2b")
+        mlflow.log_params(
+            {
+                "validation_scheme": "time_series",
+                "seed": 42,
+                "train_scope": "all_sports",
+                "n_samples_train": len(x_train),
+                "n_samples_val": len(x_val),
+                "n_samples_test": len(x_test),
+                "n_features": len(feature_names),
+                "new_features": "bet_direction,is_home,is_draw,is_away",
+                "depth": 7,
+                "learning_rate": 0.1,
+                "iterations": 500,
+                "seg_low": SEGMENT_THRESHOLDS["low"],
+                "seg_mid": SEGMENT_THRESHOLDS["mid"],
+                "seg_high": SEGMENT_THRESHOLDS["high"],
+            }
+        )
+
+        try:
+            model = CatBoostClassifier(
+                depth=7,
+                learning_rate=0.1,
+                iterations=500,
+                cat_features=cat_features,
+                random_seed=42,
+                eval_metric="AUC",
+            )
+            model.fit(
+                x_sub_train,
+                y_sub_train,
+                cat_features=cat_features,
+                eval_set=(x_val, y_val),
+                early_stopping_rounds=50,
+                verbose=100,
+            )
+
+            auc_test = roc_auc_score(y_test, model.predict_proba(x_test)[:, 1])
+            logger.info("Test AUC: %.4f (baseline=0.786)", auc_test)
+            mlflow.log_metric("auc", auc_test)
+
+            # Feature importances для direction фичей
+            fi = dict(zip(feature_names, model.get_feature_importance(), strict=True))
+            for fname in ["bet_direction", "is_home", "is_draw", "is_away"]:
+                logger.info("Feature importance [%s]: %.2f", fname, fi.get(fname, 0))
+                mlflow.log_metric(f"fi_{fname}", fi.get(fname, 0))
+
+            # ROI на test
+            proba_test = model.predict_proba(x_test)[:, 1]
+            odds_test = test_df["Odds"].values
+            kelly_test = compute_kelly(proba_test, odds_test)
+
+            lead_hours = (
+                test_df["Start_Time"] - test_df["Created_At"]
+            ).dt.total_seconds() / 3600.0
+            kelly_test[lead_hours.values <= 0] = -999
+
+            mkt_mask = test_df["Market"].values == "1x2"
+            seg_mask = apply_shrunken_segments(test_df, kelly_test, SEGMENT_THRESHOLDS)
+            final_mask = mkt_mask & seg_mask
+
+            roi, n_bets = calc_roi(test_df, final_mask)
+            logger.info("Test ROI: %.4f%% (n=%d)", roi, n_bets)
+            mlflow.log_metrics({"roi": roi, "n_selected": n_bets})
+
+            baseline_roi = 28.5833
+            delta = roi - baseline_roi
+            mlflow.log_metric("roi_delta", delta)
+            mlflow.set_tag("convergence_signal", str(min(1.0, max(0.0, delta / 5.0 + 0.5))))
+
+            if roi > 35.0:
+                mlflow.set_tag("alert", "MQ-LEAKAGE-SUSPECT")
+                mlflow.set_tag("status", "failed")
+                mlflow.set_tag("failure_reason", f"ROI={roi:.2f} > 35%")
+                sys.exit(1)
+
+            mlflow.log_artifact(__file__)
+            mlflow.set_tag("status", "success")
+            logger.info(
+                "RESULT: ROI=%.4f%% n=%d AUC=%.4f delta=%.4f", roi, n_bets, auc_test, delta
+            )
+            print(f"STEP_4_2B_ROI={roi:.6f}")
+            print(f"STEP_4_2B_N={n_bets}")
+            print(f"STEP_4_2B_AUC={auc_test:.4f}")
+            print(f"STEP_4_2B_DELTA={delta:.4f}")
+            print(f"MLFLOW_RUN_ID={run.info.run_id}")
+
+            if delta > 0.0:
+                best_dir = SESSION_DIR / "models" / "best"
+                best_dir.mkdir(parents=True, exist_ok=True)
+                model.save_model(str(best_dir / "model.cbm"))
+                metadata = {
+                    "framework": "catboost",
+                    "roi": roi,
+                    "auc": auc_test,
+                    "segment_thresholds": SEGMENT_THRESHOLDS,
+                    "market_filter": "1x2",
+                    "n_bets": n_bets,
+                    "feature_names": feature_names,
+                    "params": {
+                        "depth": 7,
+                        "learning_rate": 0.1,
+                        "iterations": model.best_iteration_ or 500,
+                    },
+                    "session_id": SESSION_ID,
+                    "step": "4.2b",
+                }
+                with open(best_dir / "metadata.json", "w") as f:
+                    json.dump(metadata, f, indent=2)
+                logger.info("Сохранено в %s", best_dir)
+
+        except Exception:
+            import traceback
+
+            mlflow.set_tag("status", "failed")
+            mlflow.log_text(traceback.format_exc(), "traceback.txt")
+            mlflow.set_tag("failure_reason", "exception")
+            logger.exception("Ошибка в step 4.2b")
+            raise
+
+
+if __name__ == "__main__":
+    main()
