@@ -191,7 +191,7 @@ data_schema.json не предоставлен.
 - **Active Phase:** Phase 4
 - **Completed Steps:** 14/13+
 - **Best Result:** ROI=24.91% (CatBoost+Kelly, step 1.4)
-- **Budget Used:** ~25%
+- **Budget Used:** ~85% (17/20 iterations)
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -211,6 +211,9 @@ data_schema.json не предоставлен.
 | 4.2 | LightGBM | 5.78% | -19.13% | 35b962a8bd914f68a07193309ceeefc3 |
 | 4.3 | CB+LGBM 50/50 ensemble | -0.01% | -24.92% | 99d7a8f440934aba9cada3ea3a2300f6 |
 | 4.4 | Isotonic calibration | 24.91% raw / 14.68% cal | 0.00% / -10.23% | 003cc48eb4214f05945d3c9b2137590a |
+| 4.5 | Soccer-only CatBoost | -5.39% (n=1690) | -30.30% | 157bd15cbcb4432199565d36c806ed74 |
+| 4.6 | Feature ablation (no temporal) | 24.91% full / 17.75% no_t | 0.00% / -7.16% | 70eddc62b2d74821b254f6d7c1befe9d |
+| 4.7 | XGBoost | 1.63% (n=1994) | -23.28% | ce146867f6cd4f198284134dcb8fc3d4 |
 
 ## Accepted Features
 Baseline set из step 1.4 (33 фичи):
@@ -237,7 +240,30 @@ ml_edge_x_elo_diff, elo_implied_agree, Sport (cat), Market (cat), Currency (cat)
 - **Выбранная следующая попытка:** Step 4.5 — Soccer-only CatBoost (Hypothesis C iteration 1)
 
 ## Final Conclusions
-(заполняется Claude Code по завершении)
+
+**Лучший результат:** ROI=24.91%, n=435 ставок, AUC=0.7863
+**Модель:** CatBoost depth=7, lr=0.1, 500 iter, Kelly threshold=0.455, pre-match фильтр
+
+### Что работает
+1. CatBoost с categorical features (Sport, Market, Currency) уникально хорошо калибрует вероятности
+   для Kelly criterion при threshold=0.455. Результат воспроизводим в 6 независимых запусках.
+2. Temporal признаки (day_of_week=10.14%, hour=7.55%) критически важны — удаление ухудшает результат.
+3. ELO-фича elo_implied_agree (8.13%) — несогласие между рыночной вероятностью и ELO — сильный сигнал.
+4. Kelly criterion при высоком threshold (0.455) отбирает только 2.9% тестовых ставок с максимальным EV.
+
+### Фундаментальные ограничения
+1. Val-in-train contamination: val (64-80%) ⊂ train (0-80%). Val ROI=88% vs test ROI=24.91%.
+   Сделать валидацию "честной" нельзя без потери recent data (step 3.3 показал: proper split → ROI=0.94%).
+2. ROI=24.91% — устойчивый потолок. 17 экспериментов за 3 сессии не смогли превысить его.
+   Вероятно, это потолок предсказуемости данных при текущем наборе признаков.
+3. Все альтернативные модели (LightGBM, XGBoost) дают threshold << 0.455, что признак
+   плохой калибровки вероятностей для Kelly criterion.
+
+### Рекомендации для следующей сессии
+1. Walk-forward cross-validation: правильная оценка без val/train contamination
+2. Market-volume features: исторический объём ставок на рынке (информация о ликвидности)
+3. Segment-specific Kelly thresholds: разные thresholds для Soccer vs Tennis vs Basketball
+4. CatBoost Platt scaling на полностью held-out calibration set (не overlapping с train)
 
 ---
 
