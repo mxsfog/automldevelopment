@@ -147,9 +147,9 @@ data_schema.json не предоставлен.
 
 ## Current Status
 - **Active Phase:** Phase 4
-- **Completed Steps:** 11/11
-- **Best Result:** ROI=24.91% (pre-match Kelly, step 4.5)
-- **Budget Used:** 80%
+- **Completed Steps:** 12/12
+- **Best Result:** ROI=24.91% (pre-match Kelly, step 4.5 — подтверждён step 4.10)
+- **Budget Used:** 85%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -171,6 +171,7 @@ data_schema.json не предоставлен.
 | 4.7 | Bagging 5-seeds + threshold sweep + sport analysis | 19.23% | -5.68% | 6aad2d93d5704192bd784166d95f9084 |
 | 4.8 | Hyperparam grid: depth×lr×kelly (d7/lr0.05/k1.0 best) | 17.80% | -7.11% | 1aec34f40a644f01a172b6285b8f5950 |
 | 4.9 | Recency window (equal weights best t=0.595) | 21.54% | -3.37% | 66b9bbff7a34405abc66a71db59d10e2 |
+| 4.10 | XGBoost vs CatBoost (confirmation: CB=24.91%, XGB=3.68%) | 24.91% | 0.00% | 4ad9adc76323451d8fc63bcda3731f52 |
 
 ## Accepted Features
 
