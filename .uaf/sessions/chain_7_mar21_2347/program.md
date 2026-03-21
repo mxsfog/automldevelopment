@@ -158,9 +158,9 @@ Best roi = **24.90881477935688**.
 
 ## Current Status
 - **Active Phase:** Phase 4 (chain continuation)
-- **Completed Steps:** 7/5
-- **Best Result:** ROI=26.9345% (step 4.6, shrunken_segment_thresholds shrink=0.5, n=372)
-- **Budget Used:** 50%
+- **Completed Steps:** 11/5
+- **Best Result:** ROI=28.5833% (step 4.10, 1x2+shrunken_segments, Soccer only, n=233)
+- **Budget Used:** 70%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -174,6 +174,10 @@ Best roi = **24.90881477935688**.
 | 4.4 | Deeper CatBoost (depth=9, lr=0.05, 1500 iter) | 4.1844% (n=3022) | -20.72% | 0cddc9870ae34f0e981e80c6a75ac9f7 |
 | 4.5 | Dual-agreement (CatBoost + platform ML_P_Model) | 21.7452% (n=38) | -3.16% | 302c6b91c57f4618a66be0d4a11aaf2a |
 | 4.6 | Shrunken segment thresholds (shrink=0.5) | 26.9345% (n=372) | +2.03% | 13248020e9b441efa46f5d9eefa0eaa9 |
+| 4.7 | Shrinkage sweep (val-optimized, best=0.9) | 24.5566% (n=359) | -0.35% | 5b4854e0fead4e61bb426b942203fe13 |
+| 4.8 | Walk-forward probability ensemble (4 windows) | -26.7306% (n=453) | -51.6% | c3c86a1a8b4b456aba24c9d6e77ece5d |
+| 4.9 | Market filter + shrunken segments (top-5) | 26.9345% (n=372) | +2.03% | 1d7fc94cf7804c7e9a6b99de1b6179c6 |
+| 4.10 | 1x2 only + shrunken segments (Soccer) | 28.5833% (n=233) | +3.67% | 5eeff22fca134f05a6a2811650c2de27 |
 
 ## Research Insights (plateau iteration 1)
 - **Найдено:** partial Kelly (0.5x) более робастен; favorite-longshot bias означает что high-odds переоценены букмекерами; calibration >> accuracy для Kelly ROI
