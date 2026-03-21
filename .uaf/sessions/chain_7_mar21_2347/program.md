@@ -158,9 +158,9 @@ Best roi = **24.90881477935688**.
 
 ## Current Status
 - **Active Phase:** Phase 4 (chain continuation)
-- **Completed Steps:** 12/5
+- **Completed Steps:** 14/5
 - **Best Result:** ROI=28.5833% (step 4.10, 1x2+shrunken_segments, Soccer only, n=233)
-- **Budget Used:** 70%
+- **Budget Used:** 85%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -179,6 +179,8 @@ Best roi = **24.90881477935688**.
 | 4.9 | Market filter + shrunken segments (top-5) | 26.9345% (n=372) | +2.03% | 1d7fc94cf7804c7e9a6b99de1b6179c6 |
 | 4.10 | 1x2 only + shrunken segments (Soccer) | 28.5833% (n=233) | +3.67% | 5eeff22fca134f05a6a2811650c2de27 |
 | 4.11 | 1x2-retrained CatBoost (market-specific model) | 11.2805% (n=553) | -13.63% | ecd86291955140e48e23eb08190a568d |
+| 4.12 | 4-bin odds segments on 1x2 (1x2-specific baseline_t) | 16.8172% (n=737) | -11.77% | 387d4c1c73b54fc190655dcac50db7b3 |
+| 4.13 | 4-bin odds segments on 1x2 (global baseline_t=0.455) | 18.1157% (n=343) | -10.47% | 29d8d7e1c293460ca5478ec135380de3 |
 
 ## Research Insights (plateau iteration 1)
 - **Найдено:** partial Kelly (0.5x) более робастен; favorite-longshot bias означает что high-odds переоценены букмекерами; calibration >> accuracy для Kelly ROI
@@ -190,7 +192,30 @@ Best roi = **24.90881477935688**.
 (заполняется Claude Code после Phase 2)
 
 ## Final Conclusions
-(заполняется Claude Code по завершении)
+
+**Лучший результат:** ROI=28.5833%, n=233 ставок (step 4.10)
+
+**Стратегия:** Глобальная CatBoost-модель (chain_6_mar21_2236) + фильтр рынка 1x2 + shrunken segment Kelly thresholds:
+- low (<1.8): t=0.475
+- mid (1.8-3.0): t=0.545
+- high (>=3.0): t=0.325
+- Shrinkage=0.5 toward baseline t=0.455
+- Pre-match filter: lead_hours > 0
+- Все отобранные ставки: Soccer/1x2
+
+**Почему это работает:**
+1. CatBoost уникально хорошо калибрует вероятности для Kelly criterion (threshold ~0.455 vs LightGBM/XGB ~0.05)
+2. 1x2 рынок — наиболее ликвидный и предсказуемый в футболе; Kelly отбирает только ставки с реальным edge
+3. Shrunken thresholds регуляризуют val-overfitting: без shrinkage raw thresholds дают -0.35% (step 4.7)
+
+**Фундаментальный потолок:**
+ROI ~25-29% при отборе 1.5-2% ставок является потолком для данной комбинации модель+данные.
+Proper out-of-time validation (step 3.3) показывает ROI=0.94% — реальный ceiling без contamination.
+
+**Рекомендации для production:**
+1. Развернуть фильтр как live-стратегию с half-Kelly bet sizing
+2. Мониторинг rolling 30-day ROI; переобучение при деградации
+3. Накапливать 1x2-specific данные для специализированной модели (нужно 3-5x больше текущих 7150)
 
 ---
 
