@@ -189,9 +189,9 @@ data_schema.json не предоставлен.
 
 ## Current Status
 - **Active Phase:** Phase 4
-- **Completed Steps:** 10/13
+- **Completed Steps:** 14/13+
 - **Best Result:** ROI=24.91% (CatBoost+Kelly, step 1.4)
-- **Budget Used:** 20%
+- **Budget Used:** ~25%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -207,6 +207,10 @@ data_schema.json не предоставлен.
 | 3.1 | Optuna ROI objective | 2.44% | -22.47% | ab302c9f5e654c13845623489adfa7fc |
 | 3.2 | Optuna AUC objective | 9.22% | -15.69% | 4c49ce2513de4aa88f0e085cb6b39f9a |
 | 3.3 | Proper split (0-64%) + Optuna | 0.94% | -23.97% | fc4104196ba84821b79976c1b80e634a |
+| 4.1 | Seed ensemble (5 seeds) | 24.90% | -0.01% | ced96943386b410e95ab070d0c630ae5 |
+| 4.2 | LightGBM | 5.78% | -19.13% | 35b962a8bd914f68a07193309ceeefc3 |
+| 4.3 | CB+LGBM 50/50 ensemble | -0.01% | -24.92% | 99d7a8f440934aba9cada3ea3a2300f6 |
+| 4.4 | Isotonic calibration | 24.91% raw / 14.68% cal | 0.00% / -10.23% | 003cc48eb4214f05945d3c9b2137590a |
 
 ## Accepted Features
 Baseline set из step 1.4 (33 фичи):
@@ -215,6 +219,22 @@ ml_p_model, ml_p_implied, ml_edge, ml_ev, ml_team_stats_found, ml_winrate_diff, 
 hour, day_of_week, month, odds_times_stake, ml_edge_pos, ml_ev_pos,
 elo_max, elo_min, elo_diff, elo_ratio, elo_mean, elo_std, k_factor_mean, has_elo, elo_count,
 ml_edge_x_elo_diff, elo_implied_agree, Sport (cat), Market (cat), Currency (cat)
+
+## Research Insights (plateau iteration 1)
+- **Найдено:** Walsh & Joshi (2024): выбор модели по calibration вместо accuracy даёт +34% vs -35% ROI. Isotonic regression calibration — #1 способ улучшить Kelly betting.
+- **Гипотеза A:** Isotonic calibration после CatBoost → лучше откалиброванные Kelly → больше прибыльных ставок при том же threshold
+- **Гипотеза B:** Fixed EV threshold (EV > 5%) вместо grid search val ROI → убирает overfitting на val
+- **Гипотеза C:** Soccer-only модель — сегмент с наибольшим val ROI (97.5%), n=278
+- **Выбранная следующая попытка:** Step 4.4 — Isotonic calibration + CatBoost baseline
+- **Итог 4.4:** REJECTED. Brier raw=0.1859 < cal=0.1955 — isotonic ухудшила калибровку. Test cal=14.68% << baseline 24.91%.
+
+## Research Insights (plateau iteration 2)
+- **Анализ:** 4 итерации Phase 4 без улучшения. LightGBM/ensemble дают val ROI>50% но test<6%. Calibration не помогает. Baseline CatBoost depth=7 устойчиво держит 24.91%.
+- **Ключевой вопрос:** Можно ли улучшить отбор ставок через сегментацию (Soccer-only) или feature ablation?
+- **Гипотеза A:** Soccer-only модель — Cricket/Basketball могут добавлять шум. Isolated Soccer-only train+test может дать более чистый сигнал.
+- **Гипотеза B:** Feature importance ablation — top-15 фичей избавит от шума при тех же гиперпараметрах.
+- **Гипотеза C:** Platt scaling (LogisticRegression поверх CatBoost скоров) — более устойчива чем isotonic при малой calib выборке.
+- **Выбранная следующая попытка:** Step 4.5 — Soccer-only CatBoost (Hypothesis C iteration 1)
 
 ## Final Conclusions
 (заполняется Claude Code по завершении)
