@@ -147,9 +147,9 @@ data_schema.json не предоставлен.
 
 ## Current Status
 - **Active Phase:** Phase 4
-- **Completed Steps:** 10/10
+- **Completed Steps:** 11/11
 - **Best Result:** ROI=24.91% (pre-match Kelly, step 4.5)
-- **Budget Used:** 75%
+- **Budget Used:** 80%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -170,6 +170,7 @@ data_schema.json не предоставлен.
 | 4.6 | PM specialized model (train pm-only) + LightGBM ens | 7.44% | -17.46% | eb8b1989b11d45a989fee6a02fd866d7 |
 | 4.7 | Bagging 5-seeds + threshold sweep + sport analysis | 19.23% | -5.68% | 6aad2d93d5704192bd784166d95f9084 |
 | 4.8 | Hyperparam grid: depth×lr×kelly (d7/lr0.05/k1.0 best) | 17.80% | -7.11% | 1aec34f40a644f01a172b6285b8f5950 |
+| 4.9 | Recency window (equal weights best t=0.595) | 21.54% | -3.37% | 66b9bbff7a34405abc66a71db59d10e2 |
 
 ## Accepted Features
 
