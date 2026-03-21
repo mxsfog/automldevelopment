@@ -127,25 +127,46 @@ data_schema.json не предоставлен.
 *Выполняется после Phase 1 всегда*
 *Пропускается только если skip_feature_engineering: true в task.yaml*
 
+#### Step 2.1 — Features v2 (rejected)
+- **Status:** done
+- **MLflow Run ID:** a3f765d6813149569aa804533fba92a3
+- **Result:** ROI=-0.92% (n=1574)
+- **Conclusion:** Слишком много фичей (46). lead_hours/is_prematch как features ломают Kelly threshold (упал до 0.125). Overfitting on val (83.53% vs -0.92% test). Отклонено.
 
+#### Step 2.2 — week_of_year shadow (rejected)
+- **Status:** done
+- **MLflow Run ID:** 5c8164d0fdce4f24b63ec1e92afd4364
+- **Result:** ROI=8.82% (n=127), delta=-16.09%
+- **Conclusion:** week_of_year хуже day_of_week. n_bets=127 < 200 (невалидно). AUC снизился. Отклонено.
 
-*Гипотезы о фичах будут сгенерированы Claude Code на основе data_schema.json*
-*после завершения Phase 1 (max 5 шагов)*
+#### Step 2.3 — Segment analysis (neutral)
+- **Status:** done
+- **MLflow Run ID:** d9edd78981b64672adf7881ab81aa0e7
+- **Result:** ROI=24.91% (n=435), delta=0.00%
+- **Conclusion:** Все сегменты прибыльны на val (Soccer 97.5%, Tennis 32.9%). Нет убыточных сегментов для фильтрации. Baseline набор признаков принят.
 
 
 ### Phase 3: Model Optimization (MANDATORY)
 *Включается после фиксации feature set из Phase 2*
 *Optuna Hyperparameter Search на лучшей конфигурации*
 
-#### Step 3.1 — Hyperparameter Optimization
-- **Hypothesis:** Optuna TPE найдёт лучшие гиперпараметры
-- **Method:** optuna_tpe
-- **Metric:** roi
-- **Critical:** false
-- **Status:** pending
-- **MLflow Run ID:** null
-- **Result:** null
-- **Conclusion:** null
+#### Step 3.1 — Optuna ROI objective (rejected)
+- **Status:** done
+- **MLflow Run ID:** ab302c9f5e654c13845623489adfa7fc
+- **Result:** ROI=2.44% (n=2503), val=103.71%
+- **Conclusion:** Optuna максимизировал val ROI с threshold → двойное переобучение на val. depth=10 overfits.
+
+#### Step 3.2 — Optuna AUC objective (rejected)
+- **Status:** done
+- **MLflow Run ID:** 4c49ce2513de4aa88f0e085cb6b39f9a
+- **Result:** ROI=9.22% (n=2438), val_auc=0.9694
+- **Conclusion:** AUC objective лучше, но val_auc=0.97 vs test_auc=0.77 — val data в train_df. Все ещё overfits.
+
+#### Step 3.3 — Proper split baseline + Optuna (reference)
+- **Status:** done
+- **MLflow Run ID:** fc4104196ba84821b79976c1b80e634a
+- **Result:** baseline_proper=0.94% (n=173), optuna=-23.05%
+- **Conclusion:** С train=0-64% baseline падает до 0.94% (n<200, невалидно). Train=0-80% (включая val) даёт лучшую генерализацию на тест (24.91%) — более свежие данные в обучении. Phase 3 не улучшила baseline.
 
 
 
@@ -167,10 +188,10 @@ data_schema.json не предоставлен.
 При застое 3+ итераций — Plateau Research Protocol обязателен.
 
 ## Current Status
-- **Active Phase:** Phase 2
-- **Completed Steps:** 4/5
+- **Active Phase:** Phase 4
+- **Completed Steps:** 10/13
 - **Best Result:** ROI=24.91% (CatBoost+Kelly, step 1.4)
-- **Budget Used:** 8%
+- **Budget Used:** 20%
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -180,9 +201,20 @@ data_schema.json не предоставлен.
 | 1.2 | Rule ML_Edge>=15 threshold | 2.40% | — | 0e1b4d47e6124603962d6a592f9d2bfc |
 | 1.3 | LogisticRegression+Kelly | -5.42% | — | 3c8f86dd190e4c87bdd697d357f20479 |
 | 1.4 | CatBoost default+Kelly | 24.91% | — | cecf54e2934a4cc88a269a032d43eca2 |
+| 2.1 | Features v2 (46 фичи) | -0.92% | -25.83% | a3f765d6813149569aa804533fba92a3 |
+| 2.2 | week_of_year shadow | 8.82% | -16.09% | 5c8164d0fdce4f24b63ec1e92afd4364 |
+| 2.3 | Segment analysis | 24.91% | 0.00% | d9edd78981b64672adf7881ab81aa0e7 |
+| 3.1 | Optuna ROI objective | 2.44% | -22.47% | ab302c9f5e654c13845623489adfa7fc |
+| 3.2 | Optuna AUC objective | 9.22% | -15.69% | 4c49ce2513de4aa88f0e085cb6b39f9a |
+| 3.3 | Proper split (0-64%) + Optuna | 0.94% | -23.97% | fc4104196ba84821b79976c1b80e634a |
 
 ## Accepted Features
-(заполняется Claude Code после Phase 2)
+Baseline set из step 1.4 (33 фичи):
+Odds, USD, log_odds, log_usd, implied_prob, is_parlay, outcomes_count,
+ml_p_model, ml_p_implied, ml_edge, ml_ev, ml_team_stats_found, ml_winrate_diff, ml_rating_diff,
+hour, day_of_week, month, odds_times_stake, ml_edge_pos, ml_ev_pos,
+elo_max, elo_min, elo_diff, elo_ratio, elo_mean, elo_std, k_factor_mean, has_elo, elo_count,
+ml_edge_x_elo_diff, elo_implied_agree, Sport (cat), Market (cat), Currency (cat)
 
 ## Final Conclusions
 (заполняется Claude Code по завершении)
