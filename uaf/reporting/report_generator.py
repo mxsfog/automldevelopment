@@ -58,6 +58,7 @@ def _md_to_latex(text: str) -> str:
     """Базовая конвертация Markdown в LaTeX.
 
     Конвертирует заголовки, жирный, курсив, списки, блоки кода.
+    Экранирует LaTeX-специальные символы (%, _, $, &, #) в plain-text частях.
 
     Args:
         text: Markdown текст.
@@ -65,44 +66,94 @@ def _md_to_latex(text: str) -> str:
     Returns:
         LaTeX текст (приближённый).
     """
-    # Блоки кода
+    # Сохраняем блоки кода, чтобы не экранировать их содержимое
+    code_placeholders: dict[str, str] = {}
+
+    def _save_code(m: re.Match) -> str:
+        key = f"\x00CODE{len(code_placeholders)}\x00"
+        code_placeholders[key] = "\\begin{lstlisting}\n" + m.group(1) + "\\end{lstlisting}"
+        return key
+
+    text = re.sub(r"```[a-z]*\n(.*?)```", _save_code, text, flags=re.DOTALL)
+
+    # Заголовки — экранируем содержимое заголовка
     text = re.sub(
-        r"```[a-z]*\n(.*?)```",
-        r"\\begin{lstlisting}\n\1\\end{lstlisting}",
+        r"^### (.+)$",
+        lambda m: "\\subsubsection{" + _latex_escape(m.group(1)) + "}",
         text,
-        flags=re.DOTALL,
+        flags=re.MULTILINE,
+    )
+    text = re.sub(
+        r"^## (.+)$",
+        lambda m: "\\subsection{" + _latex_escape(m.group(1)) + "}",
+        text,
+        flags=re.MULTILINE,
+    )
+    text = re.sub(
+        r"^# (.+)$",
+        lambda m: "\\subsection{" + _latex_escape(m.group(1)) + "}",
+        text,
+        flags=re.MULTILINE,
     )
 
-    # Заголовки
-    text = re.sub(r"^### (.+)$", r"\\subsubsection{\1}", text, flags=re.MULTILINE)
-    text = re.sub(r"^## (.+)$", r"\\subsection{\1}", text, flags=re.MULTILINE)
-    text = re.sub(r"^# (.+)$", r"\\subsection{\1}", text, flags=re.MULTILINE)
+    # Жирный и курсив — экранируем содержимое
+    text = re.sub(
+        r"\*\*(.+?)\*\*",
+        lambda m: "\\textbf{" + _latex_escape(m.group(1)) + "}",
+        text,
+    )
+    text = re.sub(
+        r"\*(.+?)\*",
+        lambda m: "\\textit{" + _latex_escape(m.group(1)) + "}",
+        text,
+    )
 
-    # Жирный и курсив
-    text = re.sub(r"\*\*(.+?)\*\*", r"\\textbf{\1}", text)
-    text = re.sub(r"\*(.+?)\*", r"\\textit{\1}", text)
+    # Inline code — экранируем содержимое
+    text = re.sub(
+        r"`(.+?)`",
+        lambda m: "\\texttt{" + _latex_escape(m.group(1)) + "}",
+        text,
+    )
 
-    # Inline code
-    text = re.sub(r"`(.+?)`", r"\\texttt{\1}", text)
-
-    # Маркированные списки
+    # Маркированные и нумерованные списки
     lines = text.split("\n")
-    result = []
-    in_list = False
+    result: list[str] = []
+    in_list: str | None = None  # "itemize" или "enumerate"
     for line in lines:
-        if line.strip().startswith("- ") or line.strip().startswith("* "):
-            if not in_list:
+        stripped = line.strip()
+        if stripped.startswith("- ") or stripped.startswith("* "):
+            if in_list != "itemize":
+                if in_list:
+                    result.append(f"\\end{{{in_list}}}")
                 result.append("\\begin{itemize}")
-                in_list = True
-            result.append("  \\item " + line.strip()[2:])
+                in_list = "itemize"
+            result.append("  \\item " + stripped[2:])
+        elif re.match(r"^\d+\. ", stripped):
+            if in_list != "enumerate":
+                if in_list:
+                    result.append(f"\\end{{{in_list}}}")
+                result.append("\\begin{enumerate}")
+                in_list = "enumerate"
+            result.append("  \\item " + re.sub(r"^\d+\. ", "", stripped))
         else:
             if in_list:
-                result.append("\\end{itemize}")
-                in_list = False
+                result.append(f"\\end{{{in_list}}}")
+                in_list = None
             result.append(line)
     if in_list:
-        result.append("\\end{itemize}")
+        result.append(f"\\end{{{in_list}}}")
     text = "\n".join(result)
+
+    # Экранируем оставшиеся LaTeX-специальные символы в plain-text частях.
+    # Lookbehind (?<!\\) защищает уже экранированные последовательности.
+    text = re.sub(r"(?<!\\)%", r"\\%", text)
+    text = re.sub(r"(?<!\\)_", r"\\_", text)
+    text = re.sub(r"(?<!\\)\$", r"\\$", text)
+    text = re.sub(r"(?<!\\)&", r"\\&", text)
+
+    # Восстанавливаем блоки кода
+    for key, value in code_placeholders.items():
+        text = text.replace(key, value)
 
     return text
 

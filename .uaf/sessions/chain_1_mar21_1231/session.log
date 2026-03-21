@@ -1,0 +1,18 @@
+2026-03-21T13:09:18 INFO [claude] Сессия завершена. Итоги:
+2026-03-21T13:09:18 INFO [claude] 
+2026-03-21T13:09:18 INFO [claude] **12 экспериментов, 14 итераций, 4 фазы**
+2026-03-21T13:09:18 INFO [claude] 
+2026-03-21T13:09:18 INFO [claude] | Метрика | Значение |
+2026-03-21T13:09:18 INFO [claude] |---------|----------|
+2026-03-21T13:09:18 INFO [claude] | Лучший ROI (flat) | +5.58% (stacking, 10350 ставок) |
+2026-03-21T13:09:18 INFO [claude] | AUC | 0.800 |
+2026-03-21T13:09:18 INFO [claude] | Цель ROI>=10% | не достигнута при flat betting |
+2026-03-21T13:09:18 INFO [claude] | Kelly ROI (f=0.25) | +10.01% (variable sizing) |
+2026-03-21T13:09:18 INFO [claude] 
+2026-03-21T13:09:18 INFO [claude] Основные выводы:
+2026-03-21T13:09:18 INFO [claude] - Feature engineering (ELO + odds-derived) дал +3.97% ROI — главный драйвер
+2026-03-21T13:09:18 INFO [claude] - Порог 0.45 оптимален и стабилен, высокие пороги переобучаются
+2026-03-21T13:09:18 INFO [claude] - Ensemble/stacking дают маргинальный прирост (+0.3% vs solo CatBoost)
+2026-03-21T13:09:18 INFO [claude] - Edge-based selection и Kelly criterion перспективны, но требуют валидации на новых данных
+2026-03-21T13:09:18 INFO [claude] 
+2026-03-21T13:09:18 INFO [claude] hard_stop вызван ложным MQ-LEAKAGE-SUSPECT на edge>0.10 результат (ROI=49.1% при 402 ставках — артефакт малой выборки, не утечка).

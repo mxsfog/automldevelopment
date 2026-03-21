@@ -1,0 +1,192 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage[main=russian,english]{babel}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=green!60!black,
+    pdfauthor={UAF AutoResearch Framework},
+    pdftitle={Research Report: Session sports\_10h\_v5},
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    xrightmargin=1em,
+}
+
+\definecolor{passcolor}{rgb}{0.1,0.6,0.1}
+\definecolor{failcolor}{rgb}{0.7,0.1,0.1}
+\definecolor{warncolor}{rgb}{0.8,0.5,0.0}
+\definecolor{partialcolor}{rgb}{0.5,0.5,0.8}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UAF Research Report}
+\fancyhead[R]{\small sports\_10h\_v5}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{
+    \Large\textbf{Research Report}\\[0.5em]
+    \large Session sports\_10h\_v5\\[0.3em]
+    \normalsize Session: \texttt{sports\_10h\_v5}
+}
+\author{Universal AutoResearch Framework v2.0}
+\date{2026-03-20 16:20 UTC}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Executive Summary}
+
+\textit{Секция Executive Summary не была сгенерирована Claude Code.}
+
+
+
+\section{Task Description}
+
+\begin{description}
+    \item[Задача:] Session sports\_10h\_v5
+    \item[Тип:] tabular\_classification
+    \item[Целевая метрика:] \texttt{metric}
+        (maximize)
+    \item[Датасет:] ---
+    \item[Целевая переменная:] \texttt{---}
+\end{description}
+
+
+
+
+\section{Experiment Results}
+
+\subsection{Overview}
+
+\begin{table}[H]
+\centering
+\caption{Сводка сессии}
+\begin{tabular}{lrrrr}
+\toprule
+Итого runs & Completed & Failed & Partial & Best metric \\
+\midrule
+18 & \textcolor{passcolor}{18}
+    & \textcolor{failcolor}{0}
+    & \textcolor{partialcolor}{0}
+    & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\section{Analysis and Findings}
+
+
+
+
+
+
+
+
+
+\section{Code Quality Report}
+
+\begin{table}[H]
+\centering
+\caption{Отчёт ruff (ruff 0.15.7)}
+\begin{tabular}{lr}
+\toprule
+Показатель & Значение \\
+\midrule
+Файлов проверено & 19 \\
+Чистых файлов & 19 \\
+Clean rate & \textcolor{passcolor}{100.0\%} \\
+Нарушений (после fix) & \textcolor{passcolor}{0} \\
+Файлов с нарушениями & 0 \\
+Целевой показатель достигнут & \textcolor{passcolor}{Да} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\section{Reproducibility}
+
+\begin{description}
+    \item[Session ID:] \texttt{sports\_10h\_v5}
+    \item[Дата сессии:] 2026-03-20 16:20 UTC
+    \item[MLflow experiment:] \texttt{uaf/sports\_10h\_v5}
+    \item[Claude модель:] \texttt{claude-opus-4}
+    \item[Random seed:] ---
+    \item[DVC коммит:] \texttt{0d23f2c}
+    \item[Git SHA:] \texttt{0d23f2cdb8dd}
+\end{description}
+
+\subsection*{MLflow Run IDs}
+
+\begin{lstlisting}
+6785396fa0554a45b499fe46633404fa
+f853f3d332264827a82486f84e8c22ef
+05e08058db7244b08ac8d3f89a47396e
+9f18643a84db4092b9c14f2623cadb63
+a90fd6e59323491ebe3435284d594d66
+a8597f55524f4a8fad8193c4364d2971
+318b0ab5fef9429d94d98e7bd695b214
+09c1ff3a1b42471bbd961522cca15d53
+2db5ff8395274a94aa5c2086ac5892a3
+45e8b4c7b64248d58fd275c8be5dffe1
+85ab6ae44b0b438896ddc75ec2d4c58d
+ab67485781e145ef81fabb8b71e4bb5f
+2fb875fd49164c0e8562784f586ba575
+4f96da2199ad4243a18b978460a910cb
+7ed002c5ba274dc7900caa7f7af5c6d2
+72e89a4578ef4801bb06ec1902ff6576
+12c23815397b4e0e9f3d967452853e95
+bc0353421d8745348b58f5493c15ad5d
+ce35e6a911be486c959cafc8bfb3b639
+8e0b5a4cc5ee4eb985a3e3a303b163a7
+\end{lstlisting}
+
+
+
+\end{document}

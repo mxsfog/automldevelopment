@@ -36,3 +36,55 @@ Session dir: /mnt/d/automl-research/.uaf/sessions/sports_10h
 2026-03-20T12:11:51 INFO     [uaf.runner.claude_runner] Сгенерирован settings.json: /mnt/d/automl-research/.uaf/sessions/sports_10h/.claude/settings.json
 2026-03-20T12:11:51 INFO     [uaf.runner.claude_runner] Запуск Claude Code: cmd=claude --model claude-opus-4-6..., cwd=/mnt/d/automl-research/.uaf/sessions/sports_10h
 2026-03-20T12:11:51 INFO     [uaf.runner.claude_runner] Claude Code запущен: PID=109886, pid_file=/mnt/d/automl-research/.uaf/sessions/sports_10h/claude_pid.txt
+2026-03-20T12:15:22 INFO     [uaf.budget.controller] [MQ-NEW-BEST] Первый результат: -2.631200
+2026-03-20T12:16:52 INFO     [uaf.budget.controller] [MQ-NEW-BEST] Новый лучший результат: -2.116000
+2026-03-20T12:18:52 INFO     [uaf.budget.controller] [MQ-NEW-BEST] Новый лучший результат: 0.745600
+2026-03-20T12:20:52 INFO     [uaf.budget.controller] [MQ-NEW-BEST] Новый лучший результат: 0.759000
+2026-03-20T12:33:55 INFO     [uaf.budget.controller] [MQ-NEW-BEST] Новый лучший результат: 8.456800
+2026-03-20T12:35:01 INFO     [uaf.runner.claude_runner] Claude Code завершился: return_code=0
+2026-03-20T12:35:01 INFO     [uaf.core.session_controller] [EXECUTING] Claude Code завершился: return_code=0
+2026-03-20T12:35:01 INFO     [uaf.budget.controller] BudgetController остановлен
+2026-03-20T12:35:01 INFO     [uaf.core.session_controller] [EXECUTING] завершён
+2026-03-20T12:35:01 INFO     [uaf.core.session_controller] Переход состояния: EXECUTING → ANALYZING
+2026-03-20T12:35:01 INFO     [uaf.core.session_controller] [ANALYZING] Post-session анализ
+2026-03-20T12:35:01 INFO     [uaf.core.ruff_enforcer] RuffEnforcer: найдено 6 .py файлов в /mnt/d/automl-research/.uaf/sessions/sports_10h
+2026-03-20T12:35:03 INFO     [uaf.core.ruff_enforcer] ruff_report.json сохранён: /mnt/d/automl-research/.uaf/sessions/sports_10h/ruff_report.json
+2026-03-20T12:35:03 INFO     [uaf.core.ruff_enforcer] RuffEnforcer завершён: clean_rate=100.0%, violations=0, target_met=True
+2026-03-20T12:35:03 INFO     [uaf.core.ruff_enforcer] RuffEnforcer: метрики залогированы в MLflow (clean_rate=1.00)
+2026-03-20T12:35:03 INFO     [uaf.core.session_controller] [ANALYZING] RuffEnforcer: clean_rate=100.0%
+2026-03-20T12:35:03 INFO     [uaf.analysis.result_analyzer] Начало анализа сессии: sports_10h
+2026-03-20T12:35:03 INFO     [uaf.analysis.result_analyzer] Загружено 5 runs из MLflow
+2026-03-20T12:35:03 INFO     [uaf.analysis.result_analyzer] Runs: completed=5, failed=0, partial=0
+2026-03-20T12:35:05 INFO     [uaf.analysis.result_analyzer] Вычислено 0 корреляций param→metric
+2026-03-20T12:35:06 INFO     [uaf.analysis.result_analyzer] session_analysis.json сохранён: /mnt/d/automl-research/.uaf/sessions/sports_10h/session_analysis.json
+2026-03-20T12:35:06 INFO     [uaf.analysis.result_analyzer] Анализ сессии завершён: /mnt/d/automl-research/.uaf/sessions/sports_10h/session_analysis.json
+2026-03-20T12:35:06 INFO     [uaf.core.session_controller] [ANALYZING] ResultAnalyzer: total=5, completed=5, failed=0
+2026-03-20T12:35:06 INFO     [uaf.analysis.system_error_analyzer] SystemErrorAnalyzer: начало анализа сессии sports_10h
+2026-03-20T12:35:06 INFO     [uaf.analysis.system_error_analyzer] system_error_report.json сохранён: /mnt/d/automl-research/.uaf/sessions/sports_10h/system_error_report.json
+2026-03-20T12:35:06 INFO     [uaf.analysis.system_error_analyzer] SystemErrorAnalyzer завершён: health=has_critical, critical=1, warnings=0
+2026-03-20T12:35:06 INFO     [uaf.core.session_controller] [ANALYZING] SystemErrorAnalyzer: health=has_critical
+2026-03-20T12:35:06 INFO     [uaf.core.session_controller] [ANALYZING] завершён
+2026-03-20T12:35:06 INFO     [uaf.core.session_controller] Переход состояния: ANALYZING → REPORTING
+2026-03-20T12:35:06 INFO     [uaf.core.session_controller] [REPORTING] Генерация отчёта
+2026-03-20T12:35:06 INFO     [uaf.reporting.report_generator] ReportGenerator: начало генерации отчёта для сессии sports_10h
+2026-03-20T12:35:07 INFO     [uaf.reporting.report_generator] report.tex записан: /mnt/d/automl-research/.uaf/sessions/sports_10h/report/report.tex
+2026-03-20T12:35:09 INFO     [uaf.reporting.report_generator] PDF скомпилирован через tectonic: /mnt/d/automl-research/.uaf/sessions/sports_10h/report/report.pdf
+2026-03-20T12:35:09 INFO     [uaf.reporting.report_generator] Отчёт залогирован в MLflow
+2026-03-20T12:35:09 INFO     [uaf.core.session_controller] [REPORTING] Отчёт создан: /mnt/d/automl-research/.uaf/sessions/sports_10h/report/report.pdf
+2026-03-20T12:35:09 INFO     [uaf.core.session_controller] [REPORTING] завершён
+2026-03-20T12:35:09 INFO     [uaf.core.session_controller] Переход состояния: REPORTING → DONE
+🏃 View run planning/initial at: http://127.0.0.1:5000/#/experiments/2/runs/76570628b6c245dca701df8773ccd4ff
+🧪 View experiment at: http://127.0.0.1:5000/#/experiments/2
+🏃 View run session_summary/ruff at: http://127.0.0.1:5000/#/experiments/2/runs/0316649733b9405fba0725711b0eb87a
+🧪 View experiment at: http://127.0.0.1:5000/#/experiments/2
+🏃 View run report/final at: http://127.0.0.1:5000/#/experiments/2/runs/a9e67ddc7f0b4a4f8863908a599489a1
+🧪 View experiment at: http://127.0.0.1:5000/#/experiments/2
+
+======================================================================
+  UAF Сессия завершена: sports_10h
+======================================================================
+  Отчёт: /mnt/d/automl-research/.uaf/sessions/sports_10h/report/report.pdf
+  MLflow UI: http://127.0.0.1:5000
+  Experiment: uaf/sports_10h
+  Session dir: /mnt/d/automl-research/.uaf/sessions/sports_10h
+======================================================================

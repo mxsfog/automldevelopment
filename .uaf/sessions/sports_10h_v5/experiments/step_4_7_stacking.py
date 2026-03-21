@@ -144,9 +144,7 @@ def main() -> None:
 
             # Threshold on val
             thresholds = np.arange(0.40, 0.90, 0.01).tolist()
-            best_t, _ = find_best_threshold_on_val(
-                train_val, p_stacked_val, thresholds=thresholds
-            )
+            best_t, _ = find_best_threshold_on_val(train_val, p_stacked_val, thresholds=thresholds)
             roi_stacked = calc_roi(test, p_stacked_test, threshold=best_t)
             auc_stacked = roc_auc_score(y_test, p_stacked_test)
 

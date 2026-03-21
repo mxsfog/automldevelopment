@@ -1,0 +1,183 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage[main=russian,english]{babel}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=green!60!black,
+    pdfauthor={UAF AutoResearch Framework},
+    pdftitle={Research Report: Session sports\_10h\_v3},
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    xrightmargin=1em,
+}
+
+\definecolor{passcolor}{rgb}{0.1,0.6,0.1}
+\definecolor{failcolor}{rgb}{0.7,0.1,0.1}
+\definecolor{warncolor}{rgb}{0.8,0.5,0.0}
+\definecolor{partialcolor}{rgb}{0.5,0.5,0.8}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UAF Research Report}
+\fancyhead[R]{\small sports\_10h\_v3}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{
+    \Large\textbf{Research Report}\\[0.5em]
+    \large Session sports\_10h\_v3\\[0.3em]
+    \normalsize Session: \texttt{sports\_10h\_v3}
+}
+\author{Universal AutoResearch Framework v2.0}
+\date{2026-03-20 13:34 UTC}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Executive Summary}
+
+\textit{Секция Executive Summary не была сгенерирована Claude Code.}
+
+
+
+\section{Task Description}
+
+\begin{description}
+    \item[Задача:] Session sports\_10h\_v3
+    \item[Тип:] tabular\_classification
+    \item[Целевая метрика:] \texttt{metric}
+        (maximize)
+    \item[Датасет:] ---
+    \item[Целевая переменная:] \texttt{---}
+\end{description}
+
+
+
+
+\section{Experiment Results}
+
+\subsection{Overview}
+
+\begin{table}[H]
+\centering
+\caption{Сводка сессии}
+\begin{tabular}{lrrrr}
+\toprule
+Итого runs & Completed & Failed & Partial & Best metric \\
+\midrule
+9 & \textcolor{passcolor}{9}
+    & \textcolor{failcolor}{0}
+    & \textcolor{partialcolor}{0}
+    & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\section{Analysis and Findings}
+
+
+
+
+
+
+
+
+
+\section{Code Quality Report}
+
+\begin{table}[H]
+\centering
+\caption{Отчёт ruff (ruff 0.15.7)}
+\begin{tabular}{lr}
+\toprule
+Показатель & Значение \\
+\midrule
+Файлов проверено & 11 \\
+Чистых файлов & 11 \\
+Clean rate & \textcolor{passcolor}{100.0\%} \\
+Нарушений (после fix) & \textcolor{passcolor}{0} \\
+Файлов с нарушениями & 0 \\
+Целевой показатель достигнут & \textcolor{passcolor}{Да} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\section{Reproducibility}
+
+\begin{description}
+    \item[Session ID:] \texttt{sports\_10h\_v3}
+    \item[Дата сессии:] 2026-03-20 13:34 UTC
+    \item[MLflow experiment:] \texttt{uaf/sports\_10h\_v3}
+    \item[Claude модель:] \texttt{claude-opus-4}
+    \item[Random seed:] ---
+    \item[DVC коммит:] \texttt{---}
+    \item[Git SHA:] \texttt{cbdf2ad7c803}
+\end{description}
+
+\subsection*{MLflow Run IDs}
+
+\begin{lstlisting}
+de8b69f675234aa4be66d0880e7d0fe0
+c0549f2c833d4204b42ebf23252d7891
+fca36d55a40d4b02b4a3857b538a0810
+1518553d91c342f8af48b9882c01c14b
+c0149215b6324a7faf9890435706af75
+539bde73525d4efda50fb44289a270ef
+41b775640cde4a46a8ccfdd539b8b34c
+0d0049dd35624438a5847620eab8da01
+d0a7700ebe3d46889a2f405425ceb3b7
+da967a7535474f2fa8c2e841fc6ef6d8
+b5c8912697e04a099773b60c12197a39
+\end{lstlisting}
+
+
+
+\end{document}

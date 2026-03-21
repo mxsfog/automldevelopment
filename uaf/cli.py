@@ -64,6 +64,7 @@ def main(ctx: click.Context, verbose: bool) -> None:
     default=Path("."),
     help="Рабочая директория",
 )
+@click.option("--prev-session", default=None, help="ID предыдущей сессии для передачи контекста")
 @click.pass_context
 def run_cmd(
     ctx: click.Context,
@@ -75,6 +76,7 @@ def run_cmd(
     autonomous: bool,
     model: str,
     work_dir: Path,
+    prev_session: str | None,
 ) -> None:
     """Запустить UAF сессию исследования.
 
@@ -101,6 +103,7 @@ def run_cmd(
             session_id=session_id,
             claude_model=model,
             fully_autonomous=autonomous,
+            prev_session_id=prev_session,
         )
 
         # Переопределяем параметры бюджета если переданы через CLI

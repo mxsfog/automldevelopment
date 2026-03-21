@@ -1,0 +1,390 @@
+{
+  "total_files": 16,
+  "clean_files": 6,
+  "files_with_unfixable": 10,
+  "total_violations": 40,
+  "clean_rate": 0.375,
+  "ruff_version": "ruff 0.15.7",
+  "target_met": false,
+  "target_clean_rate": 0.95,
+  "files": [
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_0_eda.py",
+      "formatted": true,
+      "violations_before_fix": 2,
+      "violations_after_fix": 1,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "RUF005",
+          "message": "Consider `[*ml_cols, \"Odds\", \"USD\", \"Sport\", \"Market\"]` instead of concatenation",
+          "line": 105,
+          "col": 12
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_1_1_constant_baseline.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_1_2_rule_based.py",
+      "formatted": true,
+      "violations_before_fix": 3,
+      "violations_after_fix": 2,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "F841",
+          "message": "Local variable `train_inner` is assigned to but never used",
+          "line": 62,
+          "col": 13
+        },
+        {
+          "rule": "F841",
+          "message": "Local variable `rule_params` is assigned to but never used",
+          "line": 137,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_1_3_logistic.py",
+      "formatted": true,
+      "violations_before_fix": 11,
+      "violations_after_fix": 10,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "N806",
+          "message": "Variable `X_train_num` in function should be lowercase",
+          "line": 56,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test_num` in function should be lowercase",
+          "line": 57,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_train_num` in function should be lowercase",
+          "line": 62,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test_num` in function should be lowercase",
+          "line": 63,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_train_cat_list` in function should be lowercase",
+          "line": 66,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test_cat_list` in function should be lowercase",
+          "line": 67,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_train` in function should be lowercase",
+          "line": 113,
+          "col": 13
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test` in function should be lowercase",
+          "line": 113,
+          "col": 22
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_val` in function should be lowercase",
+          "line": 114,
+          "col": 16
+        },
+        {
+          "rule": "F841",
+          "message": "Local variable `y_val` is assigned to but never used",
+          "line": 117,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_1_4_catboost.py",
+      "formatted": true,
+      "violations_before_fix": 7,
+      "violations_after_fix": 6,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "N806",
+          "message": "Variable `X_train` in function should be lowercase",
+          "line": 63,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test` in function should be lowercase",
+          "line": 64,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_train` in function should be lowercase",
+          "line": 99,
+          "col": 13
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test` in function should be lowercase",
+          "line": 99,
+          "col": 22
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_val` in function should be lowercase",
+          "line": 100,
+          "col": 13
+        },
+        {
+          "rule": "B905",
+          "message": "`zip()` without an explicit `strict=` parameter",
+          "line": 188,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_2_1_features_value_edge.py",
+      "formatted": true,
+      "violations_before_fix": 7,
+      "violations_after_fix": 7,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "N806",
+          "message": "Variable `X_train` in function should be lowercase",
+          "line": 131,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test` in function should be lowercase",
+          "line": 132,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_train` in function should be lowercase",
+          "line": 151,
+          "col": 5
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_test` in function should be lowercase",
+          "line": 151,
+          "col": 14
+        },
+        {
+          "rule": "N806",
+          "message": "Variable `X_val` in function should be lowercase",
+          "line": 152,
+          "col": 5
+        },
+        {
+          "rule": "B905",
+          "message": "`zip()` without an explicit `strict=` parameter",
+          "line": 197,
+          "col": 20
+        },
+        {
+          "rule": "RUF005",
+          "message": "Consider `[*baseline_cats, \"odds_bucket\", \"sport_market\"]` instead of concatenation",
+          "line": 265,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_2_2_more_data_regularized.py",
+      "formatted": true,
+      "violations_before_fix": 2,
+      "violations_after_fix": 2,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "E501",
+          "message": "Line too long (105 > 99)",
+          "line": 1,
+          "col": 100
+        },
+        {
+          "rule": "B905",
+          "message": "`zip()` without an explicit `strict=` parameter",
+          "line": 286,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_2_3_elo_value_betting.py",
+      "formatted": true,
+      "violations_before_fix": 3,
+      "violations_after_fix": 3,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "E501",
+          "message": "Line too long (102 > 99)",
+          "line": 1,
+          "col": 100
+        },
+        {
+          "rule": "RUF059",
+          "message": "Unpacked variable `val_vb_roi` is never used",
+          "line": 293,
+          "col": 26
+        },
+        {
+          "rule": "B905",
+          "message": "`zip()` without an explicit `strict=` parameter",
+          "line": 349,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_3_1_optuna_hpo.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_4_1_ensemble_segments.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_4_2_focused_strategy.py",
+      "formatted": true,
+      "violations_before_fix": 1,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_4_3_per_sport_models.py",
+      "formatted": true,
+      "violations_before_fix": 4,
+      "violations_after_fix": 4,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "RUF015",
+          "message": "Prefer `next(iter(results.values()))` over single element slice",
+          "line": 204,
+          "col": 23
+        },
+        {
+          "rule": "F841",
+          "message": "Local variable `total_n_bets` is assigned to but never used",
+          "line": 269,
+          "col": 13
+        },
+        {
+          "rule": "F841",
+          "message": "Local variable `total_payout` is assigned to but never used",
+          "line": 270,
+          "col": 13
+        },
+        {
+          "rule": "RUF005",
+          "message": "Consider `[*features, \"Sport\"]` instead of concatenation",
+          "line": 321,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_4_4_cherry_pick.py",
+      "formatted": true,
+      "violations_before_fix": 1,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_4_5_final_optimization.py",
+      "formatted": true,
+      "violations_before_fix": 2,
+      "violations_after_fix": 2,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "F841",
+          "message": "Local variable `n_sel` is assigned to but never used",
+          "line": 261,
+          "col": 17
+        },
+        {
+          "rule": "F841",
+          "message": "Local variable `val_avg` is assigned to but never used",
+          "line": 431,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/step_4_6_validated_odds_filter.py",
+      "formatted": true,
+      "violations_before_fix": 3,
+      "violations_after_fix": 3,
+      "format_error": null,
+      "unfixable": [
+        {
+          "rule": "F841",
+          "message": "Local variable `implied_val` is assigned to but never used",
+          "line": 197,
+          "col": 13
+        },
+        {
+          "rule": "F841",
+          "message": "Local variable `implied_test` is assigned to but never used",
+          "line": 251,
+          "col": 13
+        },
+        {
+          "rule": "E501",
+          "message": "Line too long (100 > 99)",
+          "line": 267,
+          "col": 100
+        }
+      ]
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/sports_10h_v4/experiments/utils.py",
+      "formatted": true,
+      "violations_before_fix": 2,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    }
+  ]
+}

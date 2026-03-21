@@ -1,0 +1,10 @@
+{
+  "framework": "catboost_ensemble",
+  "pipeline_file": "pipeline.pkl",
+  "roi": 6.349479048210855,
+  "threshold": 0.7100000000000003,
+  "n_bets": 4304,
+  "session_id": "chain_2_mar21_1941",
+  "step": "4.2",
+  "config": "elo_d6"
+}

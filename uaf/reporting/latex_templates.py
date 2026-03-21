@@ -2,12 +2,12 @@
 
 # Основной шаблон документа
 REPORT_MAIN = r"""
-\documentclass[12pt,a4paper]{article}
+\documentclass[10pt,a4paper,twocolumn]{article}
 \usepackage{fontspec}
 \usepackage[main=russian,english]{babel}
-\setmainfont{DejaVu Serif}
-\setsansfont{DejaVu Sans}
-\setmonofont{DejaVu Sans Mono}
+\setmainfont[Scale=0.95]{DejaVu Serif}
+\setsansfont[Scale=0.95]{DejaVu Sans}
+\setmonofont[Scale=0.85]{DejaVu Sans Mono}
 \usepackage{geometry}
 \usepackage{booktabs}
 \usepackage{longtable}
@@ -19,14 +19,24 @@ REPORT_MAIN = r"""
 \usepackage{listings}
 \usepackage{float}
 \usepackage{amsmath}
+\usepackage{abstract}
+\usepackage{titlesec}
 
 \geometry{
     a4paper,
-    top=2.5cm,
-    bottom=2.5cm,
-    left=3cm,
-    right=2.5cm
+    top=1.8cm,
+    bottom=2.0cm,
+    left=1.5cm,
+    right=1.5cm,
+    columnsep=0.6cm
 }
+
+\titlespacing*{\section}{0pt}{6pt}{3pt}
+\titlespacing*{\subsection}{0pt}{4pt}{2pt}
+\titlespacing*{\subsubsection}{0pt}{3pt}{1pt}
+\titleformat{\section}{\normalfont\normalsize\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\small\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\small\itshape}{\thesubsubsection}{1em}{}
 
 \hypersetup{
     colorlinks=true,

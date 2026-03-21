@@ -1,59 +1,32 @@
 {
   "version": "2.1",
-  "session_id": "chain_6_mar20_1955",
-  "iterations_used": 20,
+  "session_id": "chain_2_mar21_1941",
+  "iterations_used": 2,
   "iterations_limit": 20,
-  "time_elapsed": 2255.4,
+  "time_elapsed": 752.0,
   "time_limit": 28800.0,
-  "hard_stop": true,
-  "hard_stop_reason": "iterations_limit_reached",
-  "phase": "grace_period",
-  "alerts": [
-    {
-      "code": "MQ-DEGRADATION",
-      "level": "WARNING",
-      "message": "\u0414\u0435\u0433\u0440\u0430\u0434\u0430\u0446\u0438\u044f \u043c\u0435\u0442\u0440\u0438\u043a\u0438: \u043b\u0443\u0447\u0448\u0435\u0435=66.8415",
-      "timestamp": 1774028014.8449948
-    }
-  ],
-  "hints": [
-    "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u043e 100% \u0431\u044e\u0434\u0436\u0435\u0442\u0430. \u041e\u0441\u0442\u0430\u043b\u043e\u0441\u044c ~0 \u0438\u0442\u0435\u0440\u0430\u0446\u0438\u0439."
-  ],
+  "hard_stop": false,
+  "hard_stop_reason": "",
+  "phase": "monitoring",
+  "alerts": [],
+  "hints": [],
   "software_health": {
     "mlflow_reachable": true,
-    "disk_free_gb": 920.61,
+    "disk_free_gb": 920.77,
     "process_alive": true,
-    "last_stdout_age_seconds": 2255.4
+    "last_stdout_age_seconds": 752.0
   },
   "data_quality": {
     "schema_hash": "",
     "files_modified": false
   },
   "metrics_history": [
-    -3.0667950299689744,
-    -4.88889378024964,
-    3.832637275934962,
-    0.15834201202246762,
-    0.0,
-    0.0,
-    0.8622973641309326,
-    0.8622973641309326,
-    0.8205191141721466,
-    62.7952147551471,
-    0.8622973641309326,
-    0.8622973641309326,
-    65.76006803535121,
-    0.8622973641309326,
-    0.8658124667997729,
-    65.76006803535121,
-    66.84152577212407,
-    0.8586577033685638,
-    0.8504148883556499,
-    0.8696169838623999
+    56.79659414649727,
+    22.65612245703544
   ],
-  "budget_fraction_used": 1.0,
-  "warning_triggered": true,
-  "convergence_signal": 0.95,
+  "budget_fraction_used": 0.1,
+  "warning_triggered": false,
+  "convergence_signal": 0.15,
   "runs_per_iteration": 1,
-  "timestamp": 1774028014.8450196
+  "timestamp": 1774112079.0020003
 }

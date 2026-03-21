@@ -1,0 +1,437 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage[main=russian,english]{babel}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=green!60!black,
+    pdfauthor={UAF AutoResearch Framework},
+    pdftitle={Research Report: sports\_betting\_win\_prediction},
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    xrightmargin=1em,
+}
+
+\definecolor{passcolor}{rgb}{0.1,0.6,0.1}
+\definecolor{failcolor}{rgb}{0.7,0.1,0.1}
+\definecolor{warncolor}{rgb}{0.8,0.5,0.0}
+\definecolor{partialcolor}{rgb}{0.5,0.5,0.8}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UAF Research Report}
+\fancyhead[R]{\small chain\_3\_mar21\_14}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{
+    \Large\textbf{Research Report}\\[0.5em]
+    \large sports\_betting\_win\_prediction\\[0.3em]
+    \normalsize Session: \texttt{chain\_3\_mar21\_1455}
+}
+\author{Universal AutoResearch Framework v2.0}
+\date{2026-03-21 16:49 UTC}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Executive Summary}
+
+\subsection{Executive Summary}
+
+\subsection{Цель}
+Предсказание победы ставки (won/lost) на спортивных событиях с целью отбора прибыльных ставок. Данные со стейкинг-платформы: 74493 ставки, 81 день, 20+ рынков, 10+ видов спорта.
+
+\subsection{Лучший результат}
+\begin{itemize}
+  \item Метрика ROI: \textbf{+27.95\%} (валидировано на val, применено к test)
+  \item Стратегия: confidence-weighted EV selection (conf\_ev >= 0.15)
+  \item Объём ставок: 1092 из 14899 на test (7.3\% selectivity)
+  \item AUC модели: 0.784
+\end{itemize}
+
+\subsection{Ключевые выводы}
+\begin{itemize}
+  \item \textbf{Confidence-weighted EV} — главное открытие сессии. Формула \texttt{EV \textbackslash{}textit\{ 1/(1+std\}10) >= 0.15} отсеивает ставки где модели не согласны, повышая ROI с 16.02\% до 27.95\%.
+  \item \textbf{Simple ensemble is king.} 3-model average (CatBoost + LightGBM + LogisticRegression) с базовыми параметрами оптимален. Усложнение (meta-model, segment models, temporal decay, calibration, extended features, odds weighting) не дает улучшений.
+  \item \textbf{CV показывает нестабильность.} Средний ROI по 5-fold expanding window CV = 0-5\% при std=11-70\%. Результат 27.95\% специфичен для тестового периода (Feb 20-22) и не является стабильным edge.
+  \item \textbf{Ограничение данных.} 81 день — недостаточно для стабильной оценки. Temporal non-stationarity: спорты, рынки, odds distribution меняются между периодами.
+\end{itemize}
+
+\subsection{Рекомендации}
+\begin{enumerate}
+  \item \textbf{Больше данных} — 6+ месяцев для стабильной оценки стратегии
+  \item \textbf{Rolling retrain} — обновлять модель каждые 1-2 недели для адаптации к drift
+  \item \textbf{Использовать conf\_ev\_0.15} как базовый фильтр, но с осторожностью — реальный ожидаемый ROI ~5\%, не 28\%
+  \item \textbf{Мониторинг} — отслеживать ROI по спортам и периодам, быстро реагировать на деградацию
+\end{enumerate}
+
+
+
+
+\section{Task Description}
+
+\begin{description}
+    \item[Задача:] sports\_betting\_win\_prediction
+    \item[Тип:] tabular\_classification
+    \item[Целевая метрика:] \texttt{roi}
+        (maximize)
+    \item[Датасет:] data/sports\_betting/bets.csv
+    \item[Целевая переменная:] \texttt{Status}
+\end{description}
+
+\subsection*{Описание задачи}
+Предсказание победы ставки (won/lost) на спортивных событиях. Данные со стейкинг-платформы: синглы и парлаи, 20+ рынков, 10+ видов спорта. Цель — ROI >= 10\% на отобранных ставках.
+
+
+
+
+\section{Experiment Results}
+
+\subsection{Overview}
+
+\begin{table}[H]
+\centering
+\caption{Сводка сессии}
+\begin{tabular}{lrrrr}
+\toprule
+Итого runs & Completed & Failed & Partial & Best roi \\
+\midrule
+19 & \textcolor{passcolor}{16}
+    & \textcolor{failcolor}{3}
+    & \textcolor{partialcolor}{0}
+    & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\section{Analysis and Findings}
+
+\subsection{Analysis and Findings}
+
+\subsection{Baseline Performance}
+\begin{itemize}
+  \item Данные: 74493 ставки, 81 день (2025-12-03 .. 2026-02-22)
+  \item Target mean: 53.89\% (slight class imbalance towards wins)
+  \item Train/test split: 80/20 по времени (59594 / 14899)
+  \item Baseline ROI (все ставки без фильтрации): отрицательный
+  \item ML baseline (EV >= 0.12): +16.02\% ROI, 2247 ставок
+\end{itemize}
+
+\subsection{Feature Engineering Results}
+\begin{itemize}
+  \item \textbf{Принятые фичи (19):} Base features (15) + Sport/Market target encoding (4)
+  \item \textbf{Отвергнутые:} odds\_features (implied\_prob, margin, odds\_log), interaction\_features (edge\_x\_odds), temporal\_features (hour, day\_of\_week), complexity\_features (odds\_spread, odds\_cv) — все ухудшают val performance
+  \item Target encoding использует smoothing (alpha=50) для защиты от overfitting на редких категориях
+\end{itemize}
+
+\subsection{Model Comparison}
+| Модель | AUC | Роль |
+|--------|-----|------|
+| CatBoost (iter=200, lr=0.05, depth=6) | 0.784 | Основная: нелинейные паттерны, взаимодействия |
+| LightGBM (n\_est=200, lr=0.05, depth=6) | ~0.78 | Дополнительный сигнал, другая архитектура деревьев |
+| LogisticRegression (C=1.0) | ~0.75 | Линейный baseline, стабилизирует ensemble |
+
+Simple average 3 моделей дает AUC=0.784. Попытки усложнить:
+\begin{itemize}
+  \item \textbf{Meta-model (OOF):} AUC=0.7840 vs 0.7839 — идентично
+  \item \textbf{XGBoost 4-model:} CV нестабильнее
+  \item \textbf{Optuna-tuned CB:} хуже EV-калибровка
+  \item \textbf{Stacking:} overfitting к val
+\end{itemize}
+
+\subsection{Segment Analysis}
+\begin{itemize}
+  \item \textbf{По спортам:} Basketball extreme ROI (малая выборка), Soccer/Tennis отрицательные, но нестабильно — спорты меняют знак между val и test
+  \item \textbf{По odds:} Прибыль из high-odds (50-500), средние odds умеренный edge, low-odds (1-2.5) near zero
+  \item \textbf{По рынкам:} высокая дисперсия, малые выборки по отдельным рынкам
+\end{itemize}
+
+\subsection{Stability \& Validity}
+\begin{itemize}
+  \item \textbf{Leakage check:} все threshold выбраны на val (последние 20\% train), применены к test один раз
+  \item \textbf{CV stability (5-fold expanding window):}
+  \item Baseline (EV>=0.12): mean=1.12\%, std=12\%
+  \item conf\_ev\_0.15: mean=4.69\%, std=27.5\%
+  \item conf\_ev\_0.08: mean=1.36\%, std=11\% (best Sharpe)
+  \item \textbf{Вывод:} результат +27.95\% специфичен для тестового периода. Реальный ожидаемый ROI: 0-5\%
+\end{itemize}
+
+\subsection{What Didn't Work}
+
+\subsubsection{Калибровка вероятностей}
+Isotonic regression на OOF: AUC практически не меняется, но ROI катастрофически падает (-8\% до -30\%). Калибровка "размазывает" вероятности, ухудшая EV selection.
+
+\subsubsection{Сегментация}
+\begin{itemize}
+  \item Per-sport models: уменьшает train size, ухудшает обобщение
+  \item Dual strategy (low/high odds): -6.10\% ROI
+  \item Sport exclusion: спорты нестабильны между периодами, exclusion не переносится
+\end{itemize}
+
+\subsubsection{Temporal decay}
+Exponential weighting (half-life 7-30 дней): ухудшает val/test на всех конфигурациях. Модель выигрывает от разнообразия в train, а не от recency.
+
+\subsubsection{Extended features}
++16 новых фичей (odds, interaction, temporal, complexity): все группы ухудшают val. Больше features = больше noise при 81-дневном датасете.
+
+\subsubsection{Multi-factor scoring}
+Добавление edge filter, agreement filter, composite scores к conf\_ev: все ухудшают ROI. conf\_ev уже оптимальный фильтр.
+
+\subsubsection{Odds-weighted training}
+log/sqrt/linear odds weighting: val показывает +15\%, test показывает -10\%. Полная инверсия val/test.
+
+\subsubsection{Bootstrap confidence}
+5 ensembles с разными seed: 11-14\% ROI vs 28\% для standard. Seed diversity дает меньше diversity чем model type diversity (CB vs LGBM vs LR).
+
+\subsubsection{Ensemble weights}
+Оптимальные веса (min log\_loss): CB=0.335, LGBM=0.000, LR=0.665. Но 2-model (CB+LR) хуже 3-model на test. Diversity от LGBM важна несмотря на нулевой оптимальный вес.
+
+\subsubsection{Feature pruning}
+Top-3 фичи: Market\_target\_enc (28\%), Market\_count\_enc (22\%), Odds (20\%). ML\_Winrate\_Diff и ML\_Rating\_Diff имеют importance=0. Но pruning до top-8..15 ухудшает val ROI.
+
+\subsubsection{Alternative confidence formulas}
+exp(-k\textit{std), percentile(std), hard std filter — все хуже оригинальной 1/(1+std}10) на test.
+
+\subsubsection{RF/ExtraTrees в ensemble}
+ET(AUC=0.760) > LR(0.757) > RF(0.750). Но замена LR на RF/ET ухудшает conf\_ev selection из-за изменения p\_std.
+
+\subsubsection{Парлай-анализ}
+20\% ставок — парлаи. Singles-only: val=15.19\%, test=6.45\%. Прибыль приходит из парлаев (high odds), не из синглов. Исключение парлаев убивает ROI.
+
+\subsubsection{Hyperparameter sensitivity}
+5 конфигов (depth 4-8, iter 200-500, lr 0.03-0.1): AUC 0.781-0.784 для всех. ROI различия определяются калибровкой, не качеством модели.
+
+\subsubsection{Dual thresholds (парлай-буст)}
+Разные пороги conf\_ev для singles/parlays: dual\_s0.15\_p0.10 дает test=29.11\% (n=1265), но uniform\_0.15 на val лучше. Инверсия val/test сохраняется.
+
+\subsubsection{Odds floor/band/ceiling анализ}
+\begin{itemize}
+  \item band\_50\_500 + conf\_ev>=0.15: test ROI=124.79\% (n=285) — extreme, нестабильно
+  \item ceil\_100 + conf\_ev>=0.15: test ROI=0.26\% — удаление odds>100 убивает прибыль
+  \item val-best band\_2\_10 (ROI=37.48\%) инвертируется на test
+  \item \textbf{Вывод:} прибыль полностью из extreme high-odds ставок
+\end{itemize}
+
+\subsubsection{CRITICAL: Profit Concentration (step 4.24)}
+\begin{itemize}
+  \item \textbf{1 ставка} (odds=490.9, P\&L=3,200,535) = \textbf{137\% всей прибыли} стратегии
+  \item Без этой ставки стратегия УБЫТОЧНА (-864K)
+  \item Top-4 ставки = 188.8\% прибыли, остальные 1088 суммарно минус
+  \item По odds-brackets: ВСЕ кроме [200,10000) убыточны:
+  \item [1,3): ROI=-5.4\%, [3,10): -24.3\%, [10,50): -10.9\%, [50,200): -22.5\%
+  \item [200,10000): ROI=+1582\% (1 выигрыш из 64 ставок)
+  \item Gini coefficient P\&L = 0.762
+  \item Seed sensitivity (5 seeds, thr=0.15): mean=23.26\%, std=7.52\%, range 16-36\%
+  \item \textbf{Заключение: стратегия не имеет систематического edge, ROI определяется 1 случайным выигрышем на extreme odds}
+\end{itemize}
+
+\subsubsection{Seed Sensitivity}
+AUC стабилен (0.784-0.785) по всем seeds. ROI нестабилен из-за зависимости от single extreme event.
+
+\subsubsection{Deep Edge Validation (step 4.28)}
+Edge strategy (p\_model - p\_implied >= 0.10, odds <= 2-5):
+\begin{itemize}
+  \item \textbf{CV:} mean=-7.10\%, std=12\% — отрицательна на CV, не робастна
+  \item \textbf{Seeds:} mean=6.40\%, std=\textbf{0.44\%} — крайне seed-стабильна
+  \item Val-test consistency из step 4.27 оказалась совпадением периода
+\end{itemize}
+
+\subsubsection{Robust CV Optimization (step 4.29) — ФИНАЛЬНЫЙ АНАЛИЗ}
+33 стратегии × 5 folds expanding window:
+
+\textbf{По min fold ROI (робастность):}
+\begin{itemize}
+  \item Лучшая: pmean\_0.55 (min=-3.46\%, mean=1.95\%) — select p >= 0.55
+  \item Все стратегии имеют отрицательный min fold ROI
+\end{itemize}
+
+\textbf{По Sharpe:}
+\begin{itemize}
+  \item Лучший: ev\_0.05 (sharpe=0.44, mean=7.00\%, std=15.97\%)
+  \item confev\_0.15: sharpe=0.17 (mean=4.69\%, std=27.55\%)
+\end{itemize}
+
+\textbf{Вывод: реалистичный ожидаемый ROI = 0-2\%, не 28\%.} 27.95\% определяется 1 ставкой на odds=490.9.
+
+\subsubsection{Capped Odds (step 4.25)}
+При ограничении max odds: cap10=2.82\%, cap20=-5.68\%, cap50=-3.62\%, cap100=0.26\%.
+Без extreme outliers edge ≈ 0 для conf\_ev стратегии.
+
+\subsubsection{Low-odds Edge (step 4.26)}
+Prediction quality по odds brackets:
+\begin{itemize}
+  \item [1.0,1.5): edge=-0.029 (модель недооценивает фаворитов)
+  \item [1.5,2.0): edge=+0.007
+  \item [2.0,2.5): edge=+0.018 (лучший edge)
+  \item [2.5,3.0): edge=+0.008
+  \item [3.0,5.0): edge=-0.020
+\end{itemize}
+
+Walk-forward (3 блока в test): conf\_ev>=0.15 дает -17.6\%, -35.8\%, +120\%. Прибыль из одного блока (одна ставка).
+
+\subsubsection{VALIDATED REAL EDGE (step 4.27)}
+Edge-based strategy: select where p\_model - p\_implied >= threshold, odds <= cap.
+Val → test consistency:
+
+| Strategy | Val ROI | Test ROI | n\_bets |
+|----------|---------|----------|--------|
+| edge\_cap2\_e0.10 | +6.69\% | +5.50\% | ~500 |
+| edge\_cap3\_e0.10 | +4.44\% | +6.93\% | ~550 |
+| edge\_cap5\_e0.10 | +3.65\% | +8.05\% | ~530 |
+| edge\_cap10\_e0.10 | +4.07\% | +7.60\% | ~540 |
+
+Это единственная стратегия с val-test consistency. Реальный edge ~5-8\%.
+В отличие от conf\_ev\_0.15 (27.95\%), не зависит от единственного extreme bet.
+
+\subsubsection{Combined edge+EV (step 4.31)}
+Intersection (edge AND EV) и union (edge OR EV) стратегии:
+\begin{itemize}
+  \item inter\_e0.10\_ev0.02\_cap3: val=4.44\% → test=6.93\% (n=516) — идентично чистому edge\_cap3
+  \item Комбинация не улучшает: edge и EV при low odds сильно коррелируют
+\end{itemize}
+
+\subsubsection{Temporal Block Analysis (step 4.32)}
+4 временных блока в test:
+\begin{itemize}
+  \item \textbf{pmean\_0.55: 4/4 положительных} [0.4\%, 2.0\%, 0.5\%, 2.1\%], std=0.80\%
+  \item confev\_0.15: 1/4 положительный [-41.8\%, -31.1\%, -17.2\%, +165.6\%], std=85.2\%
+  \item ev\_0.05: 1/4 положительный [-10.1\%, -5.4\%, -5.0\%, +40.8\%]
+  \item edge\_cap5\_e0.10: 3/4 положительных [7.1\%, -0.9\%, 24.7\%, 0.9\%]
+  \item \textbf{pmean\_0.55 — единственная стратегия со 100\% положительных блоков}
+\end{itemize}
+
+\subsubsection{Kelly Criterion Sizing (step 4.33)}
+Fractional Kelly (0.25/0.50/0.75/1.00) × 3 стратегии:
+\begin{itemize}
+  \item \textbf{pmean\_0.55 + kelly\_0.25: ROI=259\%, drawdown=50\%} — единственная стратегия, выживающая Kelly
+  \item pmean\_0.55 + kelly\_0.50: ROI=356\%, drawdown=59\%
+  \item confev\_0.15 + kelly\_0.25: ROI=69\%, drawdown=94\%
+  \item confev\_0.15 + kelly>=0.50: \textbf{банкролл уничтожен} (-85\% до -100\%)
+  \item ev\_0.05 + kelly>=0.25: банкролл уничтожен
+\end{itemize}
+
+Kelly criterion подтверждает: pmean\_0.55 имеет реальный, устойчивый edge.
+Стратегии на extreme odds (confev, ev) уничтожают банкролл при пропорциональном размере ставки.
+
+
+
+
+\subsection{Improvement Hypotheses}
+
+\begin{description}
+    \item[\textbf{H-07} (P1):] Большинство runs failed: нужна debugging session перед полноценным исследованием
+    \textit{Основание: failed=3, completed=0}
+\end{description}
+
+
+
+
+\section{Code Quality Report}
+
+\begin{table}[H]
+\centering
+\caption{Отчёт ruff (ruff 0.15.7)}
+\begin{tabular}{lr}
+\toprule
+Показатель & Значение \\
+\midrule
+Файлов проверено & 37 \\
+Чистых файлов & 37 \\
+Clean rate & \textcolor{passcolor}{100.0\%} \\
+Нарушений (после fix) & \textcolor{passcolor}{0} \\
+Файлов с нарушениями & 0 \\
+Целевой показатель достигнут & \textcolor{passcolor}{Да} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\section{Reproducibility}
+
+\begin{description}
+    \item[Session ID:] \texttt{chain\_3\_mar21\_1455}
+    \item[Дата сессии:] 2026-03-21 16:49 UTC
+    \item[MLflow experiment:] \texttt{uaf/chain\_3\_mar21\_1455}
+    \item[Claude модель:] \texttt{claude-opus-4}
+    \item[Random seed:] ---
+    \item[DVC коммит:] \texttt{---}
+    \item[Git SHA:] \texttt{3e2ec5b66216}
+\end{description}
+
+\subsection*{MLflow Run IDs}
+
+\begin{lstlisting}
+a6e5f4f31fb946af839bc058f22de07f
+5533a7734e1544fda1cfb2d8ed2e32fb
+0f3ef5ebded349fca5ad07a085c541c8
+2005da5d2c7f409a8ddb371afd61b841
+9ff8981028ac4fe2bc3e72bd9cac624d
+b4383ea770d74e85bd31479f3fd6fab0
+9d31649f17454f0abc846bd9e2794569
+d50d373f16014ee9a7b265d17cbcdcc4
+a8e203074c534716b2f1d269d888535a
+6b25129829ba4ea194bd8fb4403fda56
+d639cb824e234a0cb746f85c8292b2d8
+a0ec21e101634e67aa2503a98c1dce07
+7c67e8a1094945328b0ec98a98dd194f
+8986084a18e64b53a946294feb1b0702
+8043ef7d06a3414696713c22b3612243
+b62b923b2f8e40218bb22cd2217f64e7
+2188256eaf324ced87c36c12d7c2c851
+8117ef97e08047c79b633f2857c48cd2
+8bc5ac4d519c4981b8fd6bf4816ac66e
+6cb4e6cd56be48b78e82ebc7b2a5f077
+289eed24725c4d5daca6d7c1162493a8
+7da2ca99cabd4ac0a2b2343148cf07a9
+\end{lstlisting}
+
+
+
+\end{document}

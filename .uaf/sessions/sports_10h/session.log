@@ -1,0 +1,22 @@
+2026-03-20T12:35:00 INFO [claude] Исследовательская сессия `sports_10h` завершена. Вот итоги:
+2026-03-20T12:35:00 INFO [claude] 
+2026-03-20T12:35:00 INFO [claude] ---
+2026-03-20T12:35:00 INFO [claude] 
+2026-03-20T12:35:00 INFO [claude] **Phase 1 — Baselines:**
+2026-03-20T12:35:00 INFO [claude] - DummyClassifier: ROI = -2.11% (lower bound)
+2026-03-20T12:35:00 INFO [claude] - Rule-based (ML_Edge > 0): ROI = -2.12% (платформенный ML_Edge бесполезен)
+2026-03-20T12:35:00 INFO [claude] - LogisticRegression: ROI = +1.88%, AUC = 0.758
+2026-03-20T12:35:00 INFO [claude] - CatBoost (default): ROI = **+2.81%**, AUC = 0.766 — лучший результат
+2026-03-20T12:35:00 INFO [claude] 
+2026-03-20T12:35:00 INFO [claude] **Phase 2 — Feature Engineering:**
+2026-03-20T12:35:00 INFO [claude] - 5 групп фичей протестировано shadow feature trick'ом
+2026-03-20T12:35:00 INFO [claude] - 0 принято — все ухудшили ROI, базовый feature set оптимален
+2026-03-20T12:35:00 INFO [claude] 
+2026-03-20T12:35:00 INFO [claude] **Phase 3 — Optuna HPO:**
+2026-03-20T12:35:00 INFO [claude] - 40 trials, лучший ROI = +2.52% — не превзошёл дефолтный CatBoost
+2026-03-20T12:35:00 INFO [claude] 
+2026-03-20T12:35:00 INFO [claude] **Лучшая модель:** CatBoost (iterations=500, depth=6, lr=0.1) с threshold=0.55, ROI = +2.81%.
+2026-03-20T12:35:00 INFO [claude] 
+2026-03-20T12:35:00 INFO [claude] **Цель ROI >= 10% не достигнута.** Основной сигнал — Odds (80.8% importance). Данные содержат ограниченный предиктивный сигнал для sports betting. Рекомендации: сегментация по видам спорта, фильтрация парлаев, расширение исторических данных.
+2026-03-20T12:35:00 INFO [claude] 
+2026-03-20T12:35:00 INFO [claude] Все 7 MLflow runs залогированы, program.md обновлён, эксперименты закоммичены.

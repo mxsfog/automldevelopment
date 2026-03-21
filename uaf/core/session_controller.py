@@ -108,6 +108,7 @@ class ResearchSessionController:
         claude_model: str = "claude-opus-4",
         fully_autonomous: bool = False,
         mlflow_tracking_uri: str = "http://127.0.0.1:5000",
+        prev_session_id: str | None = None,
     ) -> None:
         self.work_dir = work_dir.resolve()
         self.task_path = task_path.resolve()
@@ -116,6 +117,7 @@ class ResearchSessionController:
         self.claude_model = claude_model
         self.fully_autonomous = fully_autonomous
         self.mlflow_tracking_uri = mlflow_tracking_uri
+        self._prev_session_id = prev_session_id
 
         self._uaf_dir = work_dir / ".uaf"
         self._session_dir = self._uaf_dir / "sessions" / self.session_id
@@ -321,6 +323,12 @@ class ResearchSessionController:
         """PLANNING: подготовка context/ пакета для Claude Code."""
         logger.info("[PLANNING] Подготовка context/ пакета")
 
+        improvement_context_path: Path | None = None
+        prev_session_dir: Path | None = None
+        if self._prev_session_id:
+            prev_session_dir = self._uaf_dir / "sessions" / self._prev_session_id
+            improvement_context_path = self._build_improvement_context(prev_session_dir)
+
         try:
             from uaf.core.program_generator import ProgramMdGenerator
 
@@ -330,6 +338,8 @@ class ResearchSessionController:
             generator.prepare_context(
                 task_path=self.task_path,
                 session_id=self.session_id,
+                improvement_context_path=improvement_context_path,
+                prev_session_dir=prev_session_dir,
             )
             logger.info("[PLANNING] context/ пакет подготовлен")
         except Exception as exc:
@@ -417,6 +427,9 @@ class ResearchSessionController:
         from uaf.budget.controller import BudgetConfig, BudgetController
 
         budget_cfg = self._budget_config.get("budget", {})
+        metric_cfg = self._task_config.get("metric", {}) or self._task_config.get("task", {}).get(
+            "metric", {}
+        )
         budget_config = BudgetConfig(
             mode=budget_cfg.get("mode", "fixed"),
             max_iterations=budget_cfg.get("max_iterations", 20),
@@ -424,9 +437,9 @@ class ResearchSessionController:
             patience=budget_cfg.get("convergence", {}).get("patience", 3),
             min_delta=budget_cfg.get("convergence", {}).get("min_delta", 0.001),
             min_iterations=budget_cfg.get("convergence", {}).get("min_iterations", 3),
-            metric_direction=self._task_config.get("task", {}).get(
-                "metric", {}
-            ).get("direction", "maximize"),
+            metric_direction=metric_cfg.get("direction", "maximize"),
+            metric_name=metric_cfg.get("name", "roi"),
+            leakage_sanity_threshold=metric_cfg.get("leakage_sanity_threshold"),
         )
 
         experiment_id = self._mlflow_experiment_id or "0"
@@ -452,6 +465,7 @@ class ResearchSessionController:
             stdout_callback=lambda line: self._budget_controller.update_stdout_time(),  # type: ignore[union-attr]
             timeout_seconds=session_timeout,
             fully_autonomous=self.fully_autonomous,
+            on_start=lambda pid: self._budget_controller.set_claude_pid(pid),  # type: ignore[union-attr]
         )
 
         # Запускаем BudgetController в thread
@@ -459,9 +473,6 @@ class ResearchSessionController:
 
         try:
             return_code = self._claude_runner.run()
-            # Обновляем PID в BudgetController
-            if self._claude_runner.pid:
-                self._budget_controller._claude_pid = self._claude_runner.pid
             logger.info("[EXECUTING] Claude Code завершился: return_code=%d", return_code)
         except FileNotFoundError:
             logger.error(
@@ -548,8 +559,134 @@ class ResearchSessionController:
         except Exception as exc:
             logger.warning("[ANALYZING] SystemErrorAnalyzer ошибка: %s", exc)
 
+        self._auto_save_best_model()
+
         self._save_state()
         logger.info("[ANALYZING] завершён")
+
+    def _auto_save_best_model(self) -> None:
+        """Системный fallback: сохраняет лучшую модель в models/best/.
+
+        Вызывается после ANALYZING. Если Claude Code уже сохранил модель согласно
+        Model Artifact Protocol — ничего не делает. Иначе ищет model files в
+        experiments/, берёт самый последний, копирует и создаёт минимальный
+        metadata.json чтобы следующая сессия могла пропустить Phase 1-3.
+        """
+        models_best_dir = self._session_dir / "models" / "best"
+        metadata_file = models_best_dir / "metadata.json"
+
+        if metadata_file.exists():
+            logger.info("[AUTO-SAVE] models/best/metadata.json уже существует — пропуск")
+            return
+
+        experiments_dir = self._session_dir / "experiments"
+        if not experiments_dir.exists():
+            return
+
+        # Ищем model files по расширениям
+        _ext_to_framework = {
+            ".cbm": "catboost",
+            ".lgb": "lgbm",
+            ".xgb": "xgboost",
+            ".pkl": "sklearn",
+            ".joblib": "sklearn",
+        }
+        candidates: list[tuple[Path, str, float]] = []
+        for ext, framework in _ext_to_framework.items():
+            for path in experiments_dir.rglob(f"*{ext}"):
+                candidates.append((path, framework, path.stat().st_mtime))
+
+        # Также проверяем models/best/ на случай частичного сохранения
+        if models_best_dir.exists():
+            for ext, framework in _ext_to_framework.items():
+                for path in models_best_dir.glob(f"*{ext}"):
+                    candidates.append((path, framework, path.stat().st_mtime))
+
+        if not candidates:
+            logger.info("[AUTO-SAVE] model files не найдены, пропуск")
+            return
+
+        best_path, framework, _ = max(candidates, key=lambda x: x[2])
+
+        models_best_dir.mkdir(parents=True, exist_ok=True)
+        target = models_best_dir / best_path.name
+        if not target.exists():
+            import shutil
+            shutil.copy2(best_path, target)
+
+        # Извлекаем feature names из модели
+        feature_names: list[str] = []
+        try:
+            if framework == "catboost":
+                from catboost import CatBoostClassifier
+                m = CatBoostClassifier()
+                m.load_model(str(target))
+                feature_names = list(m.feature_names_)
+            elif framework == "lgbm":
+                import lightgbm as lgb
+                m = lgb.Booster(model_file=str(target))
+                feature_names = list(m.feature_name())
+            elif framework == "xgboost":
+                import xgboost as xgb
+                m = xgb.Booster()
+                m.load_model(str(target))
+                feature_names = list(m.feature_names or [])
+            elif framework == "sklearn":
+                import joblib
+                m = joblib.load(target)
+                if hasattr(m, "feature_names_in_"):
+                    feature_names = list(m.feature_names_in_)
+        except Exception as exc:
+            logger.warning("[AUTO-SAVE] не удалось извлечь feature names: %s", exc)
+
+        # Берём метрику из session_analysis.json
+        best_value: float | None = None
+        analysis_file = self._session_dir / "session_analysis.json"
+        if analysis_file.exists():
+            try:
+                analysis_data = json.loads(analysis_file.read_text(encoding="utf-8"))
+                best_value = analysis_data.get("best_value")
+            except Exception:
+                pass
+
+        metric_name = self._task_config.get("metric", {}).get("name", "metric")
+
+        # Проверяем есть ли pipeline.pkl рядом с model file
+        pipeline_src = best_path.parent / "pipeline.pkl"
+        pipeline_file_name: str | None = None
+        if pipeline_src.exists():
+            import shutil as _shutil
+            pipeline_target = models_best_dir / "pipeline.pkl"
+            if not pipeline_target.exists():
+                _shutil.copy2(pipeline_src, pipeline_target)
+            pipeline_file_name = "pipeline.pkl"
+            logger.info("[AUTO-SAVE] pipeline.pkl скопирован из %s", pipeline_src)
+        else:
+            logger.warning(
+                "[AUTO-SAVE] pipeline.pkl не найден рядом с %s — "
+                "следующая сессия будет использовать fallback через model_file",
+                best_path,
+            )
+
+        metadata: dict[str, Any] = {
+            "framework": framework,
+            "model_file": target.name,
+            "pipeline_file": pipeline_file_name,
+            "session_id": self.session_id,
+            metric_name: best_value,
+            "feature_names": feature_names,
+            "auto_saved": True,
+        }
+        metadata_file.write_text(json.dumps(metadata, indent=2, ensure_ascii=False))
+        logger.info(
+            "[AUTO-SAVE] модель сохранена: %s (pipeline=%s, framework=%s, features=%d, %s=%.4f)",
+            target.name,
+            pipeline_file_name or "нет",
+            framework,
+            len(feature_names),
+            metric_name,
+            best_value or 0.0,
+        )
 
     def _do_reporting(self) -> None:
         """REPORTING: ReportGenerator -> LaTeX -> PDF."""
@@ -561,14 +698,18 @@ class ResearchSessionController:
             return
 
         task = self._task_config.get("task", {})
+        metric_cfg = self._task_config.get("metric", {})
+        data_cfg = self._task_config.get("data", {})
+        data_files = data_cfg.get("files", [])
+        main_file = next((f for f in data_files if f.get("role") == "main"), data_files[0] if data_files else {})
         task_config_flat = {
-            "title": task.get("title", f"Session {self.session_id}"),
+            "title": task.get("name", task.get("title", f"Session {self.session_id}")),
             "task_type": task.get("type", "---"),
-            "target_metric": task.get("metric", {}).get("name", "metric"),
-            "metric_direction": task.get("metric", {}).get("direction", "maximize"),
-            "target_column": task.get("dataset", {}).get("target_column", "---"),
-            "dataset_path": task.get("dataset", {}).get("train_path", "---"),
-            "problem_statement": task.get("problem_statement", ""),
+            "target_metric": metric_cfg.get("name", "roi"),
+            "metric_direction": metric_cfg.get("direction", "maximize"),
+            "target_column": data_cfg.get("target_column", "---"),
+            "dataset_path": main_file.get("path", "---"),
+            "problem_statement": task.get("description", ""),
             "claude_model": self.claude_model,
         }
 
@@ -769,6 +910,173 @@ class ResearchSessionController:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         logger.info("Создан минимальный program.md: %s", path)
+
+    def _build_improvement_context(self, prev_session_dir: Path) -> Path | None:
+        """Генерирует improvement_context.md из итогов предыдущей сессии.
+
+        Читает program.md и session_analysis.json из директории предыдущей сессии
+        и формирует структурированный контекст для следующей сессии.
+
+        Args:
+            prev_session_dir: директория предыдущей сессии.
+
+        Returns:
+            Путь к сгенерированному improvement_context.md или None при ошибке.
+        """
+        if not prev_session_dir.exists():
+            logger.warning(
+                "[PLANNING] Директория предыдущей сессии не найдена: %s", prev_session_dir
+            )
+            return None
+
+        prev_session_id = prev_session_dir.name
+        program_md_path = prev_session_dir / "program.md"
+        analysis_path = prev_session_dir / "session_analysis.json"
+
+        # Извлекаем секции из program.md
+        final_conclusions = ""
+        iteration_log = ""
+        accepted_features = ""
+
+        if program_md_path.exists():
+            try:
+                content = program_md_path.read_text(encoding="utf-8")
+                sections = self._extract_program_md_sections(content)
+                final_conclusions = sections.get("Final Conclusions", "").strip()
+                iteration_log = sections.get("Iteration Log", "").strip()
+                accepted_features = sections.get("Accepted Features", "").strip()
+            except Exception as exc:
+                logger.warning("[PLANNING] Не удалось прочитать program.md: %s", exc)
+        else:
+            logger.warning("[PLANNING] program.md не найден в предыдущей сессии: %s", program_md_path)
+
+        # Читаем session_analysis.json
+        best_metric_value: float | None = None
+        best_metric_name = "metric"
+        ranked_runs_text = ""
+        failed_runs_text = ""
+
+        if analysis_path.exists():
+            try:
+                analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+                best_metric_value = analysis.get("best_metric_value")
+                best_metric_name = analysis.get("target_metric", "metric")
+
+                ranked_runs = analysis.get("ranked_runs", [])[:5]
+                if ranked_runs:
+                    lines = []
+                    for i, run in enumerate(ranked_runs, 1):
+                        run_name = run.get("run_name", run.get("run_id", f"run_{i}"))
+                        metric_val = run.get("metric_value", "?")
+                        tags = run.get("tags", {})
+                        step = tags.get("step", "")
+                        step_str = f" (step: {step})" if step else ""
+                        lines.append(f"- #{i}: {run_name}{step_str} → {best_metric_name}={metric_val}")
+                    ranked_runs_text = "\n".join(lines)
+
+                failed_runs = analysis.get("failed_runs", [])
+                if failed_runs:
+                    fail_lines = []
+                    for run in failed_runs[:5]:
+                        run_name = run.get("run_name", run.get("run_id", "unknown"))
+                        reason = run.get("failure_reason", run.get("error", "неизвестна"))
+                        fail_lines.append(f"- {run_name}: {reason}")
+                    failed_runs_text = "\n".join(fail_lines)
+            except Exception as exc:
+                logger.warning("[PLANNING] Не удалось прочитать session_analysis.json: %s", exc)
+        else:
+            logger.info("[PLANNING] session_analysis.json не найден: %s", analysis_path)
+
+        # Формируем improvement_context.md
+        best_result_str = (
+            f"{best_metric_value:.6f}" if best_metric_value is not None else "нет данных"
+        )
+
+        lines: list[str] = [
+            f"# Previous Session Context: {prev_session_id}",
+            "",
+            "## Best Results Achieved",
+            f"- Best {best_metric_name}: {best_result_str}",
+            "",
+        ]
+
+        if ranked_runs_text:
+            lines += [
+                "## Top Runs (do NOT repeat identical configurations)",
+                ranked_runs_text,
+                "",
+            ]
+
+        if failed_runs_text:
+            lines += [
+                "## Failed Runs (причины провалов)",
+                failed_runs_text,
+                "",
+            ]
+
+        if iteration_log:
+            lines += [
+                "## What Was Tried (do NOT repeat)",
+                iteration_log,
+                "",
+            ]
+
+        if accepted_features:
+            lines += [
+                "## Accepted Features",
+                accepted_features,
+                "",
+            ]
+
+        if final_conclusions:
+            lines += [
+                "## Recommended Next Steps",
+                final_conclusions,
+                "",
+            ]
+
+        ctx_content = "\n".join(lines)
+
+        output_path = self._session_dir / "improvement_context.md"
+        self._session_dir.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(ctx_content, encoding="utf-8")
+        logger.info(
+            "[PLANNING] improvement_context.md сгенерирован из сессии %s (%d байт)",
+            prev_session_id,
+            len(ctx_content),
+        )
+        return output_path
+
+    @staticmethod
+    def _extract_program_md_sections(content: str) -> dict[str, str]:
+        """Извлекает именованные секции из program.md.
+
+        Разбивает документ по заголовкам ## и возвращает словарь
+        {название_секции: содержимое_секции}.
+
+        Args:
+            content: полный текст program.md.
+
+        Returns:
+            Словарь секций без заголовочных строк.
+        """
+        sections: dict[str, str] = {}
+        current_name: str | None = None
+        current_lines: list[str] = []
+
+        for line in content.splitlines():
+            if line.startswith("## "):
+                if current_name is not None:
+                    sections[current_name] = "\n".join(current_lines)
+                current_name = line[3:].strip()
+                current_lines = []
+            elif current_name is not None:
+                current_lines.append(line)
+
+        if current_name is not None:
+            sections[current_name] = "\n".join(current_lines)
+
+        return sections
 
     @staticmethod
     def _generate_session_id() -> str:

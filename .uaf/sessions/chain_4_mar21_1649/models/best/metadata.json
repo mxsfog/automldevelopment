@@ -1,0 +1,42 @@
+{
+  "framework": "ensemble_cb_lgbm_lr_xgb",
+  "model_file": "model.cbm",
+  "pipeline_file": "pipeline.pkl",
+  "roi": 35.76,
+  "n_bets": 1068,
+  "feature_names": [
+    "Odds",
+    "USD",
+    "Is_Parlay",
+    "Outcomes_Count",
+    "ML_P_Model",
+    "ML_P_Implied",
+    "ML_Edge",
+    "ML_EV",
+    "ML_Winrate_Diff",
+    "ML_Rating_Diff",
+    "Outcome_Odds",
+    "n_outcomes",
+    "mean_outcome_odds",
+    "max_outcome_odds",
+    "min_outcome_odds",
+    "Sport_target_enc",
+    "Sport_count_enc",
+    "Market_target_enc",
+    "Market_count_enc"
+  ],
+  "selection_method": "4m_blend50_ev005_agree_p02",
+  "selection_formula": "p_model = avg(CB, LGBM, LR, XGB); p_final = 0.5*p_model + 0.5*(1/odds); EV = p_final*odds - 1; select where EV>=0.05 AND p_std<=0.02",
+  "ensemble": "avg(CatBoost, LightGBM, LogisticRegression, XGBoost)",
+  "blend_alpha": 0.5,
+  "params": {
+    "iterations": 200,
+    "learning_rate": 0.05,
+    "depth": 6
+  },
+  "walkforward_roi": 21.48,
+  "walkforward_std": 1.78,
+  "walkforward_range": "18.8-24.3%",
+  "walkforward_note": "21.48% mean ROI (5 seeds), but driven by extreme odds; capped at odds<=10: -3.41%",
+  "session_id": "chain_4_mar21_1649"
+}

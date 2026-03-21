@@ -1,0 +1,16 @@
+{
+  "session_id": "chain_4_mar21_1649",
+  "state": "EXECUTING",
+  "work_dir": "/mnt/d/automl-research",
+  "task_path": "/mnt/d/automl-research/data/sports_betting/task.yaml",
+  "budget_path": null,
+  "claude_model": "claude-opus-4",
+  "fully_autonomous": true,
+  "mlflow_experiment_id": "20",
+  "mlflow_tracking_uri": "http://127.0.0.1:5000",
+  "created_at": "2026-03-21T13:49:26.055059+00:00",
+  "updated_at": "2026-03-21T13:49:26.055059+00:00",
+  "approval_result": null,
+  "error": null,
+  "resume_count": 0
+}

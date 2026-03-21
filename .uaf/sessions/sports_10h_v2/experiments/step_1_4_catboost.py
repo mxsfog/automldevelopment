@@ -128,9 +128,7 @@ def main() -> None:
             for fname, imp in zip(feature_cols, importances, strict=True):
                 mlflow.log_metric(f"importance_{fname}", imp)
             logger.info("Feature importances:")
-            ranked = sorted(
-                zip(feature_cols, importances, strict=True), key=lambda x: -x[1]
-            )
+            ranked = sorted(zip(feature_cols, importances, strict=True), key=lambda x: -x[1])
             for fname, imp in ranked:
                 logger.info("  %s: %.2f", fname, imp)
 

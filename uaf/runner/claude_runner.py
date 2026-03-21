@@ -75,6 +75,7 @@ class ClaudeCodeRunner:
         stdout_callback: object = None,
         timeout_seconds: float | None = None,
         fully_autonomous: bool = False,
+        on_start: object = None,
     ) -> None:
         self.session_dir = session_dir
         self.session_id = session_id
@@ -85,6 +86,7 @@ class ClaudeCodeRunner:
         self.stdout_callback = stdout_callback
         self.timeout_seconds = timeout_seconds
         self.fully_autonomous = fully_autonomous
+        self.on_start = on_start  # callable(pid: int) — вызывается сразу после старта
 
         self._process: subprocess.Popen | None = None  # type: ignore[type-arg]
         self._pid_file = session_dir / "claude_pid.txt"
@@ -172,6 +174,9 @@ class ClaudeCodeRunner:
         pid = self._process.pid
         self._pid_file.write_text(str(pid), encoding="utf-8")
         logger.info("Claude Code запущен: PID=%d, pid_file=%s", pid, self._pid_file)
+
+        if callable(self.on_start):
+            self.on_start(pid)
 
         # Читаем stdout в отдельном потоке
         self._stdout_thread = threading.Thread(

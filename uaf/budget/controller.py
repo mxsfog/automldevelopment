@@ -39,6 +39,7 @@ AlertCode = Literal[
     "MQ-NEW-BEST",
     "MQ-CONVERGENCE",
     "BQ-ITER-COMPLETE",
+    "MQ-LEAKAGE-SUSPECT",
 ]
 
 _ALERT_LEVELS: dict[str, str] = {
@@ -46,6 +47,7 @@ _ALERT_LEVELS: dict[str, str] = {
     "SW-DISK-FULL": "CRITICAL",
     "MQ-NAN-CASCADE": "CRITICAL",
     "DQ-DATA-MODIFIED": "CRITICAL",
+    "MQ-LEAKAGE-SUSPECT": "CRITICAL",
     "MQ-DEGRADATION": "WARNING",
     "MQ-CONSECUTIVE-FAILS": "WARNING",
     "BQ-BUDGET-80PCT": "WARNING",
@@ -58,7 +60,7 @@ _ALERT_LEVELS: dict[str, str] = {
 }
 
 _MIN_DISK_FREE_GB = 1.0
-_HANG_TIMEOUT_SECONDS = 1800.0  # 30 минут — Claude Code думает долго
+_HANG_TIMEOUT_SECONDS = 7200.0  # 2 часа — Optuna и ансамбли молчат долго
 _HANG_RECHECK_SECONDS = 60.0
 _NAN_CASCADE_THRESHOLD = 3  # подряд NaN => cascade
 _CONSECUTIVE_FAIL_THRESHOLD = 3
@@ -95,8 +97,10 @@ class BudgetConfig:
     safety_cap_time_hours: float = 24.0
     soft_warning_fraction: float = 0.8
     poll_interval_seconds: int = 30
-    grace_period_seconds: int = 300
+    grace_period_seconds: int = 60
     metric_direction: Literal["maximize", "minimize"] = "maximize"
+    metric_name: str = "roi"
+    leakage_sanity_threshold: float | None = None
 
 
 @dataclass
@@ -168,6 +172,11 @@ class BudgetController:
         # Вычисляем хэши входных данных для DQ-DATA-MODIFIED
         if self.data_files:
             self._state.data_schema_hash = self._compute_data_hash()
+
+    def set_claude_pid(self, pid: int) -> None:
+        """Устанавливает PID Claude Code subprocess после его старта."""
+        self._claude_pid = pid
+        logger.info("BudgetController: claude_pid установлен = %d", pid)
 
     def start(self, claude_pid: int | None = None) -> None:
         """Запускает polling-поток мониторинга.
@@ -276,10 +285,31 @@ class BudgetController:
                     else latest < self._state.best_metric
                 )
                 if is_better and not math.isnan(latest):
-                    self._state.best_metric = latest
-                    alerts.append(
-                        self._make_alert("MQ-NEW-BEST", f"Новый лучший результат: {latest:.6f}")
-                    )
+                    # Sanity check: не обновляем best_metric если превышен leakage threshold
+                    leakage_threshold = self.config.leakage_sanity_threshold
+                    if leakage_threshold is not None and abs(latest) > leakage_threshold:
+                        alerts.append(
+                            self._make_alert(
+                                "MQ-LEAKAGE-SUSPECT",
+                                f"Метрика {latest:.4f} превышает sanity threshold "
+                                f"{leakage_threshold}. Вероятный leakage — "
+                                f"best_metric НЕ обновлена. "
+                                f"Проверь threshold selection и train/test split.",
+                            )
+                        )
+                        logger.warning(
+                            "[MQ-LEAKAGE-SUSPECT] Подозрение на leakage: %.4f > threshold %.4f. "
+                            "best_metric не обновлена.",
+                            latest,
+                            leakage_threshold,
+                        )
+                    else:
+                        self._state.best_metric = latest
+                        alerts.append(
+                            self._make_alert(
+                                "MQ-NEW-BEST", f"Новый лучший результат: {latest:.6f}"
+                            )
+                        )
                 elif (
                     len(metrics_history) >= 3
                     and "MQ-DEGRADATION" not in self._state.triggered_alerts
@@ -463,16 +493,58 @@ class BudgetController:
         ]
         # Сортируем по времени старта
         successful.sort(key=lambda r: r.info.start_time)
+        import math
+
+        target_metric = self.config.metric_name
+        maximize = self.config.metric_direction == "maximize"
         history = []
         for run in successful:
-            # Берём первую найденную числовую метрику
-            for val in run.data.metrics.values():
-                import math
-
-                if not math.isnan(val):
-                    history.append(val)
-                    break
+            metrics = run.data.metrics
+            if not metrics:
+                continue
+            val = self._pick_metric(metrics, target_metric, maximize)
+            if val is not None and not math.isnan(val):
+                history.append(val)
         return history
+
+    def _pick_metric(
+        self,
+        metrics: dict[str, float],
+        target_metric: str,
+        maximize: bool,
+    ) -> float | None:
+        """Выбирает значение целевой метрики из словаря MLflow-метрик.
+
+        Стратегия (в порядке приоритета):
+        1. Точное совпадение ключа с target_metric.
+        2. Ключи вида "{target_metric}_best*" — берём лучшее по direction.
+        3. Все ключи содержащие target_metric — берём лучшее по direction.
+        4. Fallback: первая не-NaN метрика.
+        """
+        import math
+
+        clean = {k: v for k, v in metrics.items() if not math.isnan(v)}
+        if not clean:
+            return None
+
+        # 1. Точное совпадение
+        if target_metric in clean:
+            return clean[target_metric]
+
+        # 2. Ключи вида "{target}_best*" — приоритет выше чем просто содержит
+        best_keys = [k for k in clean if k.startswith(f"{target_metric}_best")]
+        if best_keys:
+            vals = [clean[k] for k in best_keys]
+            return max(vals) if maximize else min(vals)
+
+        # 3. Любой ключ содержащий target_metric
+        containing = [k for k in clean if target_metric in k]
+        if containing:
+            vals = [clean[k] for k in containing]
+            return max(vals) if maximize else min(vals)
+
+        # 4. Fallback
+        return next(iter(clean.values()))
 
     def _extract_llm_signal(self, runs: list) -> float:  # type: ignore[type-arg]
         """Читает последний convergence_signal от Claude Code.
@@ -809,8 +881,9 @@ class BudgetController:
             self.config.grace_period_seconds,
         )
 
-        # Ждём grace period чтобы Claude Code мог сохранить состояние
-        grace_end = time.time() + self.config.grace_period_seconds
+        # При leakage — не ждём, сразу убиваем
+        effective_grace = 0 if "leakage" in reason.lower() else self.config.grace_period_seconds
+        grace_end = time.time() + effective_grace
         while time.time() < grace_end:
             if self._stop_event.is_set():
                 return

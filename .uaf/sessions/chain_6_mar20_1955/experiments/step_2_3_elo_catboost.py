@@ -127,9 +127,7 @@ def main():
             # Feature importance
             fi = model.get_feature_importance()
             fi_names = features
-            fi_sorted = sorted(
-                zip(fi_names, fi, strict=True), key=lambda x: x[1], reverse=True
-            )
+            fi_sorted = sorted(zip(fi_names, fi, strict=True), key=lambda x: x[1], reverse=True)
             fi_text = "\n".join(f"{name}: {imp:.2f}" for name, imp in fi_sorted)
             mlflow.log_text(fi_text, "feature_importance.txt")
             for name, imp in fi_sorted[:10]:

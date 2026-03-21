@@ -1,0 +1,307 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage[main=russian,english]{babel}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=green!60!black,
+    pdfauthor={UAF AutoResearch Framework},
+    pdftitle={Research Report: sports\_betting\_win\_prediction},
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    xrightmargin=1em,
+}
+
+\definecolor{passcolor}{rgb}{0.1,0.6,0.1}
+\definecolor{failcolor}{rgb}{0.7,0.1,0.1}
+\definecolor{warncolor}{rgb}{0.8,0.5,0.0}
+\definecolor{partialcolor}{rgb}{0.5,0.5,0.8}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UAF Research Report}
+\fancyhead[R]{\small chain\_5\_mar20\_19}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{
+    \Large\textbf{Research Report}\\[0.5em]
+    \large sports\_betting\_win\_prediction\\[0.3em]
+    \normalsize Session: \texttt{chain\_5\_mar20\_1910}
+}
+\author{Universal AutoResearch Framework v2.0}
+\date{2026-03-20 19:55 UTC}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Executive Summary}
+
+\subsection{Executive Summary}
+
+\subsection{Задача}
+Предсказание победы ставки (won/lost) на спортивных событиях. Цель: ROI >= 10\% на отобранных ставках.
+
+\subsection{Результат}
+\textbf{Цель достигнута.} ROI на тестовой выборке значительно превышает 10\%.
+
+\subsubsection{Лучшие стратегии (test set)}
+| Стратегия | Test ROI | CV avg ROI | CV std | Фолды+ | N ставок |
+|-----------|----------|-----------|--------|--------|----------|
+| Per-sport EV floor=0.10 | 57.42\% | 27.07\% | 15.24\% | 5/5 | 110 |
+| EV>=0.10 + p>=0.77 | 49.45\% | 21.73\% | 15.11\% | 5/5 | 157 |
+| EV>=0 + p>=0.77 | 28.44\% | 22.42\% | 7.99\% | 5/5 | 328 |
+
+\subsubsection{Прогресс по цепочке сессий}
+| Сессия | Лучший ROI (test) | CV средний | Ключевое |
+|--------|-------------------|------------|----------|
+| chain\_1 | 7.32\% | - | Odds фичи |
+| chain\_2 | 18.61\% | 12.15\% | ELO фичи |
+| chain\_3 | 20.23\% | 13.55\% | ELO + Sport Filter |
+| chain\_4 | 28.44\% | 22.42\% | EV фильтр |
+| \textbf{chain\_5} | \textbf{57.42\%} | \textbf{27.07\%} | \textbf{Per-sport EV + stricter filter} |
+
+\subsection{Модель}
+\begin{itemize}
+  \item \textbf{Framework:} CatBoost (depth=8, lr=0.08, l2=21.1)
+  \item \textbf{AUC:} 0.8623
+  \item \textbf{Фичи:} 33 (base + engineered + ELO)
+  \item \textbf{Фильтры:} ELO required, sport filter (Basketball, MMA, FIFA, Snooker excluded)
+  \item \textbf{Обучение:} full-train (iterations from early stopping on 80/20 val)
+\end{itemize}
+
+
+
+
+\section{Task Description}
+
+\begin{description}
+    \item[Задача:] sports\_betting\_win\_prediction
+    \item[Тип:] tabular\_classification
+    \item[Целевая метрика:] \texttt{roi}
+        (maximize)
+    \item[Датасет:] data/sports\_betting/bets.csv
+    \item[Целевая переменная:] \texttt{Status}
+\end{description}
+
+\subsection*{Описание задачи}
+Предсказание победы ставки (won/lost) на спортивных событиях. Данные со стейкинг-платформы: синглы и парлаи, 20+ рынков, 10+ видов спорта. Цель — ROI >= 10\% на отобранных ставках.
+
+
+
+
+\section{Experiment Results}
+
+\subsection{Overview}
+
+\begin{table}[H]
+\centering
+\caption{Сводка сессии}
+\begin{tabular}{lrrrr}
+\toprule
+Итого runs & Completed & Failed & Partial & Best roi \\
+\midrule
+20 & \textcolor{passcolor}{20}
+    & \textcolor{failcolor}{0}
+    & \textcolor{partialcolor}{0}
+    & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\section{Analysis and Findings}
+
+\subsection{Analysis and Findings}
+
+\subsection{Phase 1: Baselines}
+Установлены 4 базовые модели:
+\begin{itemize}
+  \item DummyClassifier: ROI=-3.07\% (lower bound)
+  \item Rule ML\_Edge>=11.5: ROI=-4.89\% (простое правило хуже random)
+  \item LogisticRegression: ROI=2.62\%, AUC=0.7943 (linear baseline, положительный ROI)
+  \item CatBoost default: ROI=1.72\%, AUC=0.7930 (non-linear baseline)
+\end{itemize}
+
+\subsection{Phase 2: Feature Engineering}
+Воспроизведен chain\_4 baseline: ROI=28.44\% (EV>=0+p77), AUC=0.8623.
+ELO фичи + sport filter + full-train + EV фильтр дают основной скачок.
+
+\subsection{Phase 3: Optuna}
+Optuna overfitted (val=38\% -> test=25\%, delta=-3.54pp). Chain\_4 params подтверждены как оптимальные.
+
+\subsection{Phase 4: Free Exploration}
+
+\subsubsection{Ключевое открытие: строгость EV фильтра}
+EV>=0.10 почти удваивает CV ROI по сравнению с EV>=0:
+\begin{itemize}
+  \item EV>=0: CV=11.10\%, test=28.44\%, n=134/fold
+  \item EV>=0.10: CV=21.73\%, test=49.45\%, n=47/fold
+\end{itemize}
+
+Механизм: EV>=0.10 удаляет ставки с положительным, но маленьким EV (0-10\%).
+Эти ставки имеют низкий ROI из-за маржи букмекера.
+
+\subsubsection{Per-sport EV thresholds}
+Per-sport оптимизация EV порога на val дает ещё +5.34pp по CV (27.07\% vs 21.73\%).
+Разные спорта имеют разную оптимальную строгость:
+\begin{itemize}
+  \item Table Tennis, Tennis, Soccer: EV>=0.22-0.24 (нужен высокий edge)
+  \item CS2, Dota 2: EV>=0.17
+  \item Остальные: EV>=0.10 (floor)
+\end{itemize}
+
+\subsubsection{Что не сработало}
+\begin{itemize}
+  \item Time features (hour, day\_of\_week): -2.25pp
+  \item Kelly criterion staking: хуже flat (44\% vs 49\%)
+  \item LightGBM: CV=15.03\% vs CB=21.73\%
+  \item CB+LGB blend: CV=24.23\% (лучше CB solo), но хуже CB+PS\_EV
+  \item Blend+PS\_EV: CV=22.63\% (хуже CB+PS\_EV=27.07\%)
+  \item Platt/Isotonic calibration: -2.9/-13.9pp
+  \item Optuna re-tuning: overfitting
+  \item Odds filter поверх EV>=0.10: не добавляет ценности
+\end{itemize}
+
+\subsubsection{Robustness}
+\begin{itemize}
+  \item Leave-one-sport-out: ROI=43-54\% при удалении любого спорта
+  \item min\_bets sensitivity: стабильный (57.17-57.56\%)
+  \item Все 5 фолдов CV положительные для всех ключевых стратегий
+  \item Per-sport breakdown: Table Tennis 47.89\%, Tennis 38.86\%, Soccer 73.22\%, CS2 90.58\%
+\end{itemize}
+
+\subsection{Bootstrap Confidence Intervals (Step 4.13)}
+| Strategy | ROI | 95\% CI | N | P(ROI>0) |
+|----------|-----|--------|---|----------|
+| t77 | 21.31\% | [14.84\%, 27.79\%] | 463 | 100\% |
+| ev0\_p77 | 28.44\% | [21.13\%, 36.62\%] | 328 | 100\% |
+| ev010\_p77 | 49.45\% | [40.01\%, 60.49\%] | 157 | 100\% |
+| ps\_ev010 | 57.42\% | [44.81\%, 72.39\%] | 110 | 100\% |
+
+\subsection{Multi-seed Stability (Step 4.11)}
+10 seeds, PS\_EV floor=0.10: avg=54.62\%, std=4.19\%, min=46.03\%, max=59.98\%.
+Результат не зависит от конкретного random seed.
+
+\subsection{Рекомендации для chain\_6}
+\begin{enumerate}
+  \item Per-sport EV floor=0.10 подтвержден. Можно пробовать per-sport модели для Top-3 спортов.
+  \item Tournament-level features (агрегаты по турнирам) не исследованы.
+  \item Temporal decay weights: свежие данные важнее.
+  \item Online learning: обновление модели по мере поступления данных.
+\end{enumerate}
+
+
+
+
+
+
+
+
+\section{Code Quality Report}
+
+\begin{table}[H]
+\centering
+\caption{Отчёт ruff (ruff 0.15.7)}
+\begin{tabular}{lr}
+\toprule
+Показатель & Значение \\
+\midrule
+Файлов проверено & 18 \\
+Чистых файлов & 18 \\
+Clean rate & \textcolor{passcolor}{100.0\%} \\
+Нарушений (после fix) & \textcolor{passcolor}{0} \\
+Файлов с нарушениями & 0 \\
+Целевой показатель достигнут & \textcolor{passcolor}{Да} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\section{Reproducibility}
+
+\begin{description}
+    \item[Session ID:] \texttt{chain\_5\_mar20\_1910}
+    \item[Дата сессии:] 2026-03-20 19:55 UTC
+    \item[MLflow experiment:] \texttt{uaf/chain\_5\_mar20\_1910}
+    \item[Claude модель:] \texttt{claude-opus-4}
+    \item[Random seed:] ---
+    \item[DVC коммит:] \texttt{---}
+    \item[Git SHA:] \texttt{62884dff3887}
+\end{description}
+
+\subsection*{MLflow Run IDs}
+
+\begin{lstlisting}
+c54ee929c5054b96a3db0f36d826d3e4
+b906183b34554fcfa7fab37de8ecdd05
+a2b17f749a8b46908f9e233f5c14fc6b
+7b3bd996e6d14492868d50cccb5649a4
+3297cc9ea0f24e3296867879d25481be
+dbd65d821b3e447981f4fb7ff854f1c8
+6d794a1dd87e4a78b1a8ca9249fc878b
+c7a41d06a3ab4f11bb1151454d61dbba
+75402fce4b354386abda4e22bbdea668
+76511638c30043abb6b0c94c8ebfbec4
+cd2bfbd543484a7c9bc851beeaf94f20
+0ff2a7d07204420098122ed02f923a13
+9978a914121b4091adc8852f2dd62d1a
+2244324b765d4219b2de2ed38ee551e0
+afbff5fe9dde42308830303dfb3b92aa
+2732faf76938468b9f5913ec464b15a2
+d749f6fe71d0435b9bd74ea71c96d405
+1b0b9deb4cca484aa3861a5c1363924b
+668873f0d4c94e15b3b2b735deda43aa
+022f86ba3af9405583dd9cb121417b05
+a7e901dd384945beb4234b92be6a7926
+68523e9a4279451bb8535b5459b83849
+\end{lstlisting}
+
+
+
+\end{document}

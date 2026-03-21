@@ -1,0 +1,84 @@
+{
+  "total_files": 9,
+  "clean_files": 9,
+  "files_with_unfixable": 0,
+  "total_violations": 0,
+  "clean_rate": 1.0,
+  "ruff_version": "ruff 0.15.7",
+  "target_met": true,
+  "target_clean_rate": 0.95,
+  "files": [
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/data_loader.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_2_feature_engineering.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_3_1_optuna.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_4_0_verify.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_4_1_calibrated_ev.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_4_2_stacking.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_4_3_kelly_stratified.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_4_4_profit_regression.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    },
+    {
+      "file": "/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1432/experiments/step_4_5_agreement.py",
+      "formatted": true,
+      "violations_before_fix": 0,
+      "violations_after_fix": 0,
+      "format_error": null,
+      "unfixable": []
+    }
+  ]
+}

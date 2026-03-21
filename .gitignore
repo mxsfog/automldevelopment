@@ -1,0 +1,6 @@
+
+# UAF эфемерные файлы
+.uaf/mlflow.db
+.uaf/mlruns/
+.uaf/budget_status.json
+.uaf/mlflow_context.json

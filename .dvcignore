@@ -1,3 +1,9 @@
-# Add patterns of files dvc should ignore, which could improve
-# the performance. Learn more at
-# https://dvc.org/doc/user-guide/dvcignore
+# Автогенерировано UAF
+.uaf/mlflow.db
+.uaf/mlruns/
+.uaf/budget_status.json
+.uaf/mlflow_context.json
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/

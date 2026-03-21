@@ -72,9 +72,7 @@ def find_sport_ev_thresholds(
     return thresholds
 
 
-def apply_sport_ev(
-    test_df: pd.DataFrame, p_test: np.ndarray, sport_ev: dict[str, float]
-) -> dict:
+def apply_sport_ev(test_df: pd.DataFrame, p_test: np.ndarray, sport_ev: dict[str, float]) -> dict:
     """Применение per-sport EV thresholds."""
     odds = test_df["Odds"].values
     ev = p_test * odds - 1.0
@@ -162,7 +160,12 @@ def main() -> None:
 
         logger.info(
             "Seed %d: AUC=%.4f EV010=%.2f%%(%d) PS15=%.2f%%(%d)",
-            seed, auc, ev_r["roi"], ev_r["n_bets"], ps_r["roi"], ps_r["n_bets"],
+            seed,
+            auc,
+            ev_r["roi"],
+            ev_r["n_bets"],
+            ps_r["roi"],
+            ps_r["n_bets"],
         )
 
         if ps_r["roi"] > best_roi:
@@ -199,7 +202,9 @@ def main() -> None:
 
     logger.info(
         "Bootstrap CI (95%%): [%.2f%%, %.2f%%] median=%.2f%%",
-        ci_lower, ci_upper, ci_median,
+        ci_lower,
+        ci_upper,
+        ci_median,
     )
 
     # Save best model
@@ -240,24 +245,28 @@ def main() -> None:
         mlflow.set_tag("status", "running")
 
         try:
-            mlflow.log_params({
-                "method": "multi_seed_stability",
-                "n_seeds": len(seeds),
-                "strategy": "PS_floor15_aggressive",
-                "validation_scheme": "time_series",
-                "best_seed": best_seed,
-            })
-            mlflow.log_metrics({
-                "roi": best_roi,
-                "roi_avg": float(np.mean(seed_results_ps)),
-                "roi_std": float(np.std(seed_results_ps)),
-                "auc_avg": float(np.mean(seed_results_auc)),
-                "auc_std": float(np.std(seed_results_auc)),
-                "ci_lower": float(ci_lower),
-                "ci_upper": float(ci_upper),
-                "ci_median": float(ci_median),
-                "n_bets_avg": float(np.mean(seed_n_bets)),
-            })
+            mlflow.log_params(
+                {
+                    "method": "multi_seed_stability",
+                    "n_seeds": len(seeds),
+                    "strategy": "PS_floor15_aggressive",
+                    "validation_scheme": "time_series",
+                    "best_seed": best_seed,
+                }
+            )
+            mlflow.log_metrics(
+                {
+                    "roi": best_roi,
+                    "roi_avg": float(np.mean(seed_results_ps)),
+                    "roi_std": float(np.std(seed_results_ps)),
+                    "auc_avg": float(np.mean(seed_results_auc)),
+                    "auc_std": float(np.std(seed_results_auc)),
+                    "ci_lower": float(ci_lower),
+                    "ci_upper": float(ci_upper),
+                    "ci_median": float(ci_median),
+                    "n_bets_avg": float(np.mean(seed_n_bets)),
+                }
+            )
             for i, seed in enumerate(seeds):
                 mlflow.log_metric(f"roi_seed_{seed}", seed_results_ps[i])
                 mlflow.log_metric(f"auc_seed_{seed}", seed_results_auc[i])

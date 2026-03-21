@@ -1,6 +1,6 @@
 {
   "session_id": "chain_6_mar20_1955",
-  "state": "EXECUTING",
+  "state": "DONE",
   "work_dir": "/mnt/d/automl-research",
   "task_path": "/mnt/d/automl-research/data/sports_betting/task.yaml",
   "budget_path": null,
@@ -8,8 +8,8 @@
   "fully_autonomous": true,
   "mlflow_experiment_id": "12",
   "mlflow_tracking_uri": "http://127.0.0.1:5000",
-  "created_at": "2026-03-20T16:55:59.300188+00:00",
-  "updated_at": "2026-03-20T16:55:59.300188+00:00",
+  "created_at": "2026-03-20T17:35:14.726510+00:00",
+  "updated_at": "2026-03-20T17:35:14.726510+00:00",
   "approval_result": null,
   "error": null,
   "resume_count": 0

@@ -1,0 +1,13 @@
+2026-03-20T13:02:41 INFO [claude] Research session `sports_10h_v2` завершена.
+2026-03-20T13:02:41 INFO [claude] 
+2026-03-20T13:02:41 INFO [claude] **Итог: ROI = 10.18%** (цель >= 10% достигнута).
+2026-03-20T13:02:41 INFO [claude] 
+2026-03-20T13:02:41 INFO [claude] Путь к результату за 11 итераций (22% бюджета):
+2026-03-20T13:02:41 INFO [claude] 
+2026-03-20T13:02:41 INFO [claude] | Phase | Best ROI | Прирост |
+2026-03-20T13:02:41 INFO [claude] |-------|----------|---------|
+2026-03-20T13:02:41 INFO [claude] | 1. Baseline | 3.79% (LogReg) | -- |
+2026-03-20T13:02:41 INFO [claude] | 2. Feature Eng. | 7.93% (+ELO) | +4.14% |
+2026-03-20T13:02:41 INFO [claude] | 3. Optimization | 10.18% (Optuna+segments) | +2.25% |
+2026-03-20T13:02:41 INFO [claude] 
+2026-03-20T13:02:41 INFO [claude] Конфигурация: CatBoost (13 фич, ELO + базовые ML-фичи), threshold=0.65, только синглы. Отбирается 30% ставок с WR=86%. Все runs залогированы в MLflow (experiment `uaf/sports_10h_v2`).

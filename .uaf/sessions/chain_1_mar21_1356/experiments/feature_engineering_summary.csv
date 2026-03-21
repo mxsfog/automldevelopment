@@ -1,0 +1,6 @@
+group,new_features,auc_base,auc_cand,delta_auc,roi_base_test,roi_cand_test,delta_roi,n_bets_base,n_bets_cand,thr_base,thr_cand,decision
+odds_features,"['implied_prob', 'odds_ratio', 'margin', 'odds_log', 'implied_vs_model']",0.7598,0.761,0.0012,-0.6155,-0.7119,-0.0964,1646,1596,0.88,0.83,rejected
+sport_market,"['Sport_target_enc', 'Sport_count_enc', 'Market_target_enc', 'Market_count_enc']",0.7598,0.7485,-0.0113,-0.6155,6.303,6.9185,1646,40,0.88,0.94,accepted
+temporal,"['hour', 'day_of_week', 'is_weekend']",0.7485,0.7511,0.0026,6.303,0.0549,-6.2481,40,1433,0.94,0.88,rejected
+ml_interactions,"['edge_x_odds', 'ev_x_prob', 'edge_per_odds', 'model_vs_implied_ratio']",0.7485,0.7489,0.0003,6.303,0.6182,-5.6848,40,1419,0.94,0.82,rejected
+complexity,"['odds_spread', 'odds_cv', 'high_odds', 'very_low_odds']",0.7485,0.7496,0.0011,6.303,-0.5857,-6.8887,40,1829,0.94,0.76,rejected

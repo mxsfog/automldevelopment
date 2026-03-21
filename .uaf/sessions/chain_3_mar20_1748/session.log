@@ -1,0 +1,9 @@
+2026-03-20T18:22:15 INFO [claude] Сессия chain_3 завершена. Итоги:
+2026-03-20T18:22:15 INFO [claude] 
+2026-03-20T18:22:15 INFO [claude] **Best ROI: 20.23%** (CatBoost, ELO-only + sport filter, t=0.77, n=449)
+2026-03-20T18:22:15 INFO [claude] 
+2026-03-20T18:22:15 INFO [claude] Прогресс: chain_1 7.32% -> chain_2 18.61% -> chain_3 20.23% (+1.62 п.п.)
+2026-03-20T18:22:15 INFO [claude] 
+2026-03-20T18:22:15 INFO [claude] Ключевое улучшение chain_3: **sport filter** (исключение Basketball/MMA/FIFA/Snooker) на этапах train + inference. Train на sport-filtered данных лучше чем train на всех + filter при inference (20.23% vs 19.80%).
+2026-03-20T18:22:15 INFO [claude] 
+2026-03-20T18:22:15 INFO [claude] 19 экспериментов выполнено (Phases 1-4), budget 19/20.

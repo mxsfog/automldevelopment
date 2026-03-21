@@ -1,0 +1,42 @@
+{
+  "framework": "catboost",
+  "model_file": "model.cbm",
+  "pipeline_file": "pipeline.pkl",
+  "roi": 4.837448328326608,
+  "auc": 0.7884563700131375,
+  "threshold": 0.7000000000000003,
+  "n_bets": 4626,
+  "feature_names": [
+    "Odds",
+    "USD",
+    "log_odds",
+    "log_usd",
+    "implied_prob",
+    "is_parlay",
+    "outcomes_count",
+    "ml_p_model",
+    "ml_p_implied",
+    "ml_edge",
+    "ml_ev",
+    "ml_team_stats_found",
+    "ml_winrate_diff",
+    "ml_rating_diff",
+    "hour",
+    "day_of_week",
+    "month",
+    "odds_times_stake",
+    "ml_edge_pos",
+    "ml_ev_pos",
+    "Sport",
+    "Market",
+    "Currency"
+  ],
+  "params": {
+    "iterations": 499,
+    "depth": 6,
+    "lr": 0.1
+  },
+  "sport_filter": [],
+  "session_id": "chain_1_mar21_1859",
+  "step": "1.4"
+}

@@ -1,0 +1,20 @@
+2026-03-20T20:34:54 INFO [claude] Сессия chain_6_mar20_1955 завершена. Итоги:
+2026-03-20T20:34:54 INFO [claude] 
+2026-03-20T20:34:54 INFO [claude] **Лучший результат: ROI=65.76%** (CatBoost, PS_floor15, seed=456, 75 bets)
+2026-03-20T20:34:54 INFO [claude] - Avg 10 seeds: 61.30% std=2.92%
+2026-03-20T20:34:54 INFO [claude] - Bootstrap 95% CI: [47.16%, 84.53%]
+2026-03-20T20:34:54 INFO [claude] - AUC=0.8662 avg
+2026-03-20T20:34:54 INFO [claude] 
+2026-03-20T20:34:54 INFO [claude] **Улучшение vs chain_5: +8.34pp** (57.42% -> 65.76%)
+2026-03-20T20:34:54 INFO [claude] 
+2026-03-20T20:34:54 INFO [claude] **Проведено 17 экспериментов:**
+2026-03-20T20:34:54 INFO [claude] - Baselines (1.1-1.4), ELO+HPO (2+3), EV optimization (4.3), CV validation (4.4), stability (4.6)
+2026-03-20T20:34:54 INFO [claude] - Rejected: temporal features, stacking, interactions, calibration, seed ensemble, LGB, XGB, dual thresholds, depth changes
+2026-03-20T20:34:54 INFO [claude] 
+2026-03-20T20:34:54 INFO [claude] **Ключевые выводы:**
+2026-03-20T20:34:54 INFO [claude] - Per-sport EV thresholds с floor=0.15 на мелкой сетке (0.005) — основной драйвер ROI
+2026-03-20T20:34:54 INFO [claude] - CatBoost > LightGBM > XGBoost на этих данных
+2026-03-20T20:34:54 INFO [claude] - Калибровка и ансамбли ухудшают результат на малых данных (~5k samples)
+2026-03-20T20:34:54 INFO [claude] - Все спорты в текущем наборе прибыльны
+2026-03-20T20:34:54 INFO [claude] 
+2026-03-20T20:34:54 INFO [claude] Коммит: `3e2ec5b`

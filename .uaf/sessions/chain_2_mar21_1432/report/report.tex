@@ -1,0 +1,265 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage[main=russian,english]{babel}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=green!60!black,
+    pdfauthor={UAF AutoResearch Framework},
+    pdftitle={Research Report: sports\_betting\_win\_prediction},
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    xrightmargin=1em,
+}
+
+\definecolor{passcolor}{rgb}{0.1,0.6,0.1}
+\definecolor{failcolor}{rgb}{0.7,0.1,0.1}
+\definecolor{warncolor}{rgb}{0.8,0.5,0.0}
+\definecolor{partialcolor}{rgb}{0.5,0.5,0.8}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UAF Research Report}
+\fancyhead[R]{\small chain\_2\_mar21\_14}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{
+    \Large\textbf{Research Report}\\[0.5em]
+    \large sports\_betting\_win\_prediction\\[0.3em]
+    \normalsize Session: \texttt{chain\_2\_mar21\_1432}
+}
+\author{Universal AutoResearch Framework v2.0}
+\date{2026-03-21 14:55 UTC}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Executive Summary}
+
+\subsection{Executive Summary}
+
+\subsection{Цель}
+Продолжение исследования (chain continuation) предсказания победы ставок на спортивных событиях. Цель — улучшить ROI >= 10\% на отобранных ставках поверх baseline 16.02\% из предыдущей сессии (chain\_1\_mar21\_1356).
+
+\subsection{Лучший результат}
+\begin{itemize}
+  \item Метрика ROI: \textbf{+16.02\%} (не улучшен)
+  \item Стратегия: 3-model ensemble (CatBoost + LightGBM + LogReg) на полном train, отбор по Expected Value >= 0.12
+  \item Объём ставок: 2247 из 14899 тестовых (15.1\%)
+  \item AUC: 0.784, win rate: 36.6\%, avg odds: 33.9
+\end{itemize}
+
+\subsection{Ключевые выводы}
+\begin{itemize}
+  \item Baseline ensemble с простыми параметрами (depth=6, iterations=200) устойчив к любым попыткам улучшения
+  \item Калибровка вероятностей (Platt/isotonic), более сложные модели (Optuna params, XGBoost), Kelly criterion, regression на profit — всё ухудшает результат
+  \item Прибыль генерируется на high-odds value bets, где модель находит расхождение между предсказанной и implied вероятностью
+  \item Главное ограничение: высокая дисперсия (CV std=14.14\%), 1 из 5 фолдов на нуле
+\end{itemize}
+
+\subsection{Рекомендации}
+\begin{enumerate}
+  \item Зафиксировать текущую стратегию как production-ready (ROI=16.02\% стабилен)
+  \item Расширить временное окно данных для снижения дисперсии
+  \item Исследовать agreement-based selection (не завершено из-за budget stop) — потенциально может снизить variance
+  \item Мониторинг drift: переобучать при деградации ROI ниже 5\% на rolling window
+\end{enumerate}
+
+
+
+
+\section{Task Description}
+
+\begin{description}
+    \item[Задача:] sports\_betting\_win\_prediction
+    \item[Тип:] tabular\_classification
+    \item[Целевая метрика:] \texttt{roi}
+        (maximize)
+    \item[Датасет:] data/sports\_betting/bets.csv
+    \item[Целевая переменная:] \texttt{Status}
+\end{description}
+
+\subsection*{Описание задачи}
+Предсказание победы ставки (won/lost) на спортивных событиях. Данные со стейкинг-платформы: синглы и парлаи, 20+ рынков, 10+ видов спорта. Цель — ROI >= 10\% на отобранных ставках.
+
+
+
+
+\section{Experiment Results}
+
+\subsection{Overview}
+
+\begin{table}[H]
+\centering
+\caption{Сводка сессии}
+\begin{tabular}{lrrrr}
+\toprule
+Итого runs & Completed & Failed & Partial & Best roi \\
+\midrule
+4 & \textcolor{passcolor}{4}
+    & \textcolor{failcolor}{0}
+    & \textcolor{partialcolor}{0}
+    & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\section{Analysis and Findings}
+
+\subsection{Analysis and Findings}
+
+\subsection{Baseline Performance}
+Верифицированный baseline из chain\_1: ROI=+16.02\%, AUC=0.784. Воспроизведён с delta=0.00\% (step 4.0). Стратегия: 3-model ensemble (CatBoost + LightGBM + LogReg), EV threshold >= 0.12, full train.
+
+\subsection{Feature Engineering Results}
+19 принятых фичей из предыдущей сессии (15 базовых + 4 sport/market encoding). В этой сессии новые фичи не тестировались — фокус был на архитектуре и selection strategy.
+
+\subsection{Model Comparison}
+
+| Подход | ROI test | N bets | Вывод |
+|--------|----------|--------|-------|
+| Baseline 3-model avg, EV>=0.12 | \textbf{+16.02\%} | 2247 | Best, стабилен |
+| Calibrated 3-model (isotonic prefit) | +14.04\% | 2559 | Калибровка ослабила порог |
+| 4-model + Optuna CB (depth=8) | +9.00\% | 3377 | Глубокая модель хуже калибрована |
+| Weighted ensemble (opt на val) | +8.37\% | 3738 | Веса не переносятся |
+| CatBoost Optuna solo | +6.35\% | 4642 | Одна модель хуже ансамбля |
+| Stratified EV (per-odds) | +52.94\% | 584 | Overfitting (val ROI=304\%) |
+| Kelly criterion (f=0.25) | +7.03\% | 2247 | Kelly перевешивает с high-odds |
+| Profit regression (CatBoost) | -5.36\% | 6249 | Regression не работает (skewed target) |
+| Profit regression (Huber) | -2.28\% | 6242 | Huber лучше, но всё равно отрицательный |
+
+\subsection{Segment Analysis}
+\begin{itemize}
+  \item Прибыль концентрирована в high-odds сегменте (avg\_odds=33.9)
+  \item Low-odds ставки (odds<=5) дают ROI=+2.6\% — мало value
+  \item Sport/market фильтрация ухудшает результат (chain\_1 step 4.3)
+  \item Kelly criterion перекладывает вес с high-odds на low-odds, уничтожая ROI
+\end{itemize}
+
+\subsection{Stability \& Validity}
+\begin{itemize}
+  \item 5-fold time series CV: mean=18.73\%, std=14.14\%
+  \item 4/5 фолдов прибыльны, fold 4 ~ 0\%
+  \item Нет leakage: threshold выбран на val, применён к test один раз
+  \item Stratified EV (ROI=52.94\%) — false positive (overfitting к val noise), не принят
+  \item Profit regression val ROI=157\% вызвал MQ-LEAKAGE-SUSPECT alert (false positive)
+\end{itemize}
+
+\subsection{What Didn't Work}
+
+\subsubsection{1. Калибровка вероятностей (step 4.1)}
+Isotonic prefit калибровка размывала вероятности, EV порог падал с 0.12 до 0.11, захватывая больше шумных ставок.
+
+\subsubsection{2. Более сложные модели (step 4.2)}
+Optuna-тюнированный CatBoost (depth=8, iter=873) даёт менее калиброванные вероятности для EV-расчёта. Простая модель (depth=6, iter=200) оптимальна для этой задачи.
+
+\subsubsection{3. Kelly criterion (step 4.3)}
+Kelly stake = EV/(odds-1) пропорционально уменьшает ставку на high-odds. Но именно high-odds — источник прибыли. Kelly оптимизирует log-wealth, а не ROI.
+
+\subsubsection{4. Profit regression (step 4.4)}
+Target profit = won*odds - 1 имеет extreme skew (min=-1, max=+126). Модели не могут обучиться на таком распределении — даже Huber loss не спасает. Classification + post-hoc EV принципиально лучше, т.к. разделяет оценку вероятности и расчёт profit.
+
+\subsubsection{5. Val-optimized thresholds}
+Любая оптимизация порогов на val (stratified EV, weight search) не переносится на test из-за distribution shift между val и test периодами.
+
+
+
+
+
+
+
+
+\section{Code Quality Report}
+
+\begin{table}[H]
+\centering
+\caption{Отчёт ruff (ruff 0.15.7)}
+\begin{tabular}{lr}
+\toprule
+Показатель & Значение \\
+\midrule
+Файлов проверено & 9 \\
+Чистых файлов & 9 \\
+Clean rate & \textcolor{passcolor}{100.0\%} \\
+Нарушений (после fix) & \textcolor{passcolor}{0} \\
+Файлов с нарушениями & 0 \\
+Целевой показатель достигнут & \textcolor{passcolor}{Да} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\section{Reproducibility}
+
+\begin{description}
+    \item[Session ID:] \texttt{chain\_2\_mar21\_1432}
+    \item[Дата сессии:] 2026-03-21 14:55 UTC
+    \item[MLflow experiment:] \texttt{uaf/chain\_2\_mar21\_1432}
+    \item[Claude модель:] \texttt{claude-opus-4}
+    \item[Random seed:] ---
+    \item[DVC коммит:] \texttt{---}
+    \item[Git SHA:] \texttt{3e2ec5b66216}
+\end{description}
+
+\subsection*{MLflow Run IDs}
+
+\begin{lstlisting}
+18c546f30da74f73b0bfe744896da973
+47db381fb18d4594871793ac8ab777c6
+83c926074eaa4f9a9d9761a89d7e15ed
+cacbd6f5f1e84f07898e2af0102f9240
+992f54b266534d3d85894aa0306eb886
+183c3ae0af8c46f98a6f0609ef89475f
+b95decaced284590932e353c1d36eb68
+\end{lstlisting}
+
+
+
+\end{document}

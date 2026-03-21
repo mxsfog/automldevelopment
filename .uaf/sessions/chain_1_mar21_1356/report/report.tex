@@ -1,0 +1,306 @@
+
+\documentclass[12pt,a4paper]{article}
+\usepackage{fontspec}
+\usepackage[main=russian,english]{babel}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{amsmath}
+
+\geometry{
+    a4paper,
+    top=2.5cm,
+    bottom=2.5cm,
+    left=3cm,
+    right=2.5cm
+}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black,
+    citecolor=green!60!black,
+    pdfauthor={UAF AutoResearch Framework},
+    pdftitle={Research Report: sports\_betting\_win\_prediction},
+}
+
+\lstset{
+    basicstyle=\small\ttfamily,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=2em,
+    xrightmargin=1em,
+}
+
+\definecolor{passcolor}{rgb}{0.1,0.6,0.1}
+\definecolor{failcolor}{rgb}{0.7,0.1,0.1}
+\definecolor{warncolor}{rgb}{0.8,0.5,0.0}
+\definecolor{partialcolor}{rgb}{0.5,0.5,0.8}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UAF Research Report}
+\fancyhead[R]{\small chain\_1\_mar21\_13}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\title{
+    \Large\textbf{Research Report}\\[0.5em]
+    \large sports\_betting\_win\_prediction\\[0.3em]
+    \normalsize Session: \texttt{chain\_1\_mar21\_1356}
+}
+\author{Universal AutoResearch Framework v2.0}
+\date{2026-03-21 14:32 UTC}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+
+\section{Executive Summary}
+
+\subsection{Executive Summary}
+
+\subsection{Цель}
+Предсказание победы ставки (won/lost) на спортивных событиях. Задача — достичь ROI >= 10\% на отобранных моделью ставках при использовании flat betting.
+
+\subsection{Лучший результат}
+\begin{itemize}
+  \item Метрика ROI: \textbf{+16.02\%} (тест)
+  \item Стратегия: 3-model ensemble (CatBoost + LightGBM + LogReg) обученный на полном train, отбор ставок по Expected Value >= 0.12
+  \item Объем ставок: 2247 из 14899 тестовых (15.1\%)
+  \item AUC: 0.784
+  \item Win rate: 36.6\%, средний коэффициент: 33.9
+  \item Cross-validation: mean ROI = 18.73\%, std = 14.14\% (5 фолдов)
+\end{itemize}
+
+\subsection{Ключевые выводы}
+\begin{itemize}
+  \item EV-based selection (EV = model\_prob * odds - 1) — ключевой прорыв. Переход от probability threshold к EV threshold увеличил ROI с +1.5\% до +16\%
+  \item Из 5 групп feature engineering только Sport/Market target encoding дал значимый прирост (+6.92 delta ROI). Остальные группы (odds-based, temporal, interactions, complexity) добавляли шум
+  \item ROI обусловлен высокими коэффициентами (avg\_odds=33.9). При ограничении odds<=5 ROI падает до +2.6\%. Стратегия работает за счет выявления value в high-odds ставках
+\end{itemize}
+
+\subsection{Рекомендации}
+\begin{enumerate}
+  \item Для продакшена использовать EV>=0.12 без ограничения odds, но с мониторингом drawdown
+  \item Высокая дисперсия (CV std=14.14\%) требует bankroll management (Kelly criterion или фиксированный процент)
+  \item Периодическая переобучение модели на свежих данных (данные покрывают 81 день)
+  \item Исследовать калибровку вероятностей для более точного EV-расчета
+\end{enumerate}
+
+
+
+
+\section{Task Description}
+
+\begin{description}
+    \item[Задача:] sports\_betting\_win\_prediction
+    \item[Тип:] tabular\_classification
+    \item[Целевая метрика:] \texttt{roi}
+        (maximize)
+    \item[Датасет:] data/sports\_betting/bets.csv
+    \item[Целевая переменная:] \texttt{Status}
+\end{description}
+
+\subsection*{Описание задачи}
+Предсказание победы ставки (won/lost) на спортивных событиях. Данные со стейкинг-платформы: синглы и парлаи, 20+ рынков, 10+ видов спорта. Цель — ROI >= 10\% на отобранных ставках.
+
+
+
+
+\section{Experiment Results}
+
+\subsection{Overview}
+
+\begin{table}[H]
+\centering
+\caption{Сводка сессии}
+\begin{tabular}{lrrrr}
+\toprule
+Итого runs & Completed & Failed & Partial & Best roi \\
+\midrule
+15 & \textcolor{passcolor}{14}
+    & \textcolor{failcolor}{1}
+    & \textcolor{partialcolor}{0}
+    & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+\section{Analysis and Findings}
+
+\subsection{Analysis and Findings}
+
+\subsection{Baseline Performance}
+\begin{itemize}
+  \item DummyClassifier (все ставки): ROI = -1.96\% (n=14899)
+  \item Случайный отбор 50\%: ROI = -5.92\% (n=7363)
+  \item Правило ML\_P\_Model>=60: ROI = +0.90\% (n=4353) — первый положительный ROI
+  \item LogisticRegression (thr=0.65): ROI = +1.59\% (n=5524), AUC=0.7918
+  \item CatBoost default (thr=0.60): ROI = +0.80\% (n=5697), AUC=0.7934
+\end{itemize}
+
+Все baseline-модели дают положительный, но слабый ROI (< 2\%). Модели фильтруют в основном low-odds/high-probability ставки (win\_rate > 90\%, avg\_odds ~ 1.07).
+
+\subsection{Feature Engineering Results}
+Метод Shadow Feature Trick: обучение двух моделей (baseline vs candidate) с одинаковыми гиперпараметрами.
+
+| Группа фич | Delta ROI | Статус |
+|------------|-----------|--------|
+| Odds-based (implied\_prob, margin и др.) | -0.10 | rejected |
+| Sport/Market target encoding | +6.92 | accepted |
+| Temporal (hour, day\_of\_week) | -6.25 | rejected |
+| ML interactions (edge\_x\_odds и др.) | -5.68 | rejected |
+| Complexity (odds\_spread, odds\_cv) | -6.89 | rejected |
+
+Только 4 фичи Sport/Market encoding прошли проверку. Добавление любых других групп ухудшало результат. Вероятная причина: избыточность (Odds уже несет большую часть информации), шум на малых выборках.
+
+\subsection{Model Comparison}
+\begin{itemize}
+  \item CatBoost: основная модель, AUC~0.79, Odds доминирует (51.6\% importance)
+  \item LightGBM: сравнимый AUC, добавляет diversity в ансамбль
+  \item LogisticRegression: слабее по AUC, но стабилизирует ансамбль
+  \item XGBoost: добавление 4-й модели + дополнительных фич ухудшило ROI (-3.07\% vs +7.82\%)
+\end{itemize}
+
+3-model ensemble (CB+LGBM+LR) — оптимальный вариант. Добавление моделей или фич = переобучение.
+
+\subsection{Segment Analysis}
+\begin{itemize}
+  \item Dota2: +4.58\% ROI (segment-level)
+  \item Cricket: +4.13\% ROI
+  \item CS2: +2.54\% ROI
+  \item Ice Hockey, Basketball: отрицательный ROI на val
+\end{itemize}
+
+Попытка исключить "плохие" виды спорта на val привела к ROI -18.07\% на test. Сегментный анализ на val не переносится — слишком мало данных для надежной сегментации.
+
+\subsection{Stability \& Validity}
+5-fold time series CV для лучшей конфигурации (EV>=0.12, full train):
+
+| Fold | ROI | N bets |
+|------|-----|--------|
+| 0 | +31.90\% | 1921 |
+| 1 | +12.45\% | 2463 |
+| 2 | +38.03\% | 1952 |
+| 3 | +11.59\% | 1924 |
+| 4 | -0.32\% | 1893 |
+| \textbf{Mean} | \textbf{+18.73\%} | - |
+| \textbf{Std} | \textbf{14.14\%} | - |
+
+4 из 5 фолдов прибыльны. Fold 4 (последний по времени) почти на нуле — возможный drift.
+
+Anti-leakage проверки:
+\begin{itemize}
+  \item Threshold (EV>=0.12) выбран на val, применен к test один раз
+  \item Target encoding fit только на train
+  \item Нет future-looking фичей (Payout\_USD, Score удалены)
+  \item Test ROI 16.02\% < 35\% sanity threshold
+\end{itemize}
+
+Замечание: ROI обусловлен высокими коэффициентами. При odds cap <= 5 ROI падает до ~2.6\%. Стратегия прибыльна за счет выявления value в высоких коэффициентах, что несет высокий риск.
+
+\subsection{What Didn't Work}
+\begin{enumerate}
+  \item \textbf{Probability threshold optimization} (Step 4.1): модель выбирает только safe bets с очень низкими коэффициентами (avg\_odds=1.06). ROI = -0.99\%
+  \item \textbf{Sport segmentation} (Step 4.3): фильтрация по видам спорта на val дала ROI -18.07\% на test. Overfitting на малых сегментах
+  \item \textbf{4-model ensemble + extra features} (Step 4.4): XGBoost + odds\_features + interaction\_features = ROI -3.07\%. Дополнительные фичи = шум, ухудшение EV-калибровки
+  \item \textbf{Odds capping} (Step 4.6): ограничение max\_odds убивает ROI. При odds<=5 лучший ROI = 6.48\% (EV>=0.25, n=361). Alpha находится именно в high-odds ставках
+  \item \textbf{Optuna hyperparameter tuning} (Step 3.1): минимальный прирост (+1.47\% vs +1.31\%). Гиперпараметры не критичны для данной задачи
+\end{enumerate}
+
+
+
+
+\subsection{Improvement Hypotheses}
+
+\begin{description}
+    \item[\textbf{H-07} (P1):] Большинство runs failed: нужна debugging session перед полноценным исследованием
+    \textit{Основание: failed=1, completed=0}
+\end{description}
+
+
+
+
+\section{Code Quality Report}
+
+\begin{table}[H]
+\centering
+\caption{Отчёт ruff (ruff 0.15.7)}
+\begin{tabular}{lr}
+\toprule
+Показатель & Значение \\
+\midrule
+Файлов проверено & 13 \\
+Чистых файлов & 13 \\
+Clean rate & \textcolor{passcolor}{100.0\%} \\
+Нарушений (после fix) & \textcolor{passcolor}{0} \\
+Файлов с нарушениями & 0 \\
+Целевой показатель достигнут & \textcolor{passcolor}{Да} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+\section{Reproducibility}
+
+\begin{description}
+    \item[Session ID:] \texttt{chain\_1\_mar21\_1356}
+    \item[Дата сессии:] 2026-03-21 14:32 UTC
+    \item[MLflow experiment:] \texttt{uaf/chain\_1\_mar21\_1356}
+    \item[Claude модель:] \texttt{claude-opus-4}
+    \item[Random seed:] ---
+    \item[DVC коммит:] \texttt{---}
+    \item[Git SHA:] \texttt{3e2ec5b66216}
+\end{description}
+
+\subsection*{MLflow Run IDs}
+
+\begin{lstlisting}
+3e9b5a152c4b4b4cbfadbc385b610ee4
+16afcfc98d044010b6118b867ae546a7
+5914f58ebc3c457e96d4069edabf8139
+de635e493a5141df9974f252cbe67657
+111c2182dbe04f84b32aeb3e80e41685
+a4f8794503f4472989ccda3fe405d1c3
+721d58c44c8e40489e0dbcc6559dea6c
+4ef3c43d8a8541a59c93110c1f9d9c4d
+42c6c09ee6c7424499451677e9df05be
+30a23de9af7d4adc9a4d593f880731e9
+577151579be44d79abf1196aecd12578
+7df7764ac6a4437cbe6827e2690689c9
+cb9f1364bdd542e3977ece483e4401fd
+109416be632740f2bd43e3c4b87a7e78
+82dd1bd04910459990117833ab7a34e8
+352596fcf3274460b0955aa6eaa80042
+6376d18af0dc4e4b92b47c310023c68e
+\end{lstlisting}
+
+
+
+\end{document}

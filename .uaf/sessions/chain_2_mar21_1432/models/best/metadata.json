@@ -1,0 +1,33 @@
+{
+  "framework": "catboost",
+  "model_file": "model.cbm",
+  "roi": 16.02,
+  "auc": 0.784,
+  "threshold": 0.12,
+  "n_bets": 2247,
+  "feature_names": [
+    "Odds",
+    "USD",
+    "Is_Parlay",
+    "Outcomes_Count",
+    "ML_P_Model",
+    "ML_P_Implied",
+    "ML_Edge",
+    "ML_EV",
+    "ML_Winrate_Diff",
+    "ML_Rating_Diff",
+    "Outcome_Odds",
+    "n_outcomes",
+    "mean_outcome_odds",
+    "max_outcome_odds",
+    "min_outcome_odds",
+    "Sport_target_enc",
+    "Sport_count_enc",
+    "Market_target_enc",
+    "Market_count_enc"
+  ],
+  "selection_method": "ev_ensemble_full_train",
+  "ev_threshold": 0.12,
+  "sport_filter": [],
+  "session_id": "chain_1_mar21_1356"
+}
