@@ -191,7 +191,7 @@ data_schema.json не предоставлен.
 - **Active Phase:** Phase 4
 - **Completed Steps:** 14/13+
 - **Best Result:** ROI=25.38% (CatBoost+Kelly+top-3 market filter, step 4.8)
-- **Budget Used:** ~85% (17/20 iterations)
+- **Budget Used:** ~95% (19/20 iterations)
 - **smoke_test_status:** done
 
 ## Iteration Log
@@ -215,6 +215,7 @@ data_schema.json не предоставлен.
 | 4.6 | Feature ablation (no temporal) | 24.91% full / 17.75% no_t | 0.00% / -7.16% | 70eddc62b2d74821b254f6d7c1befe9d |
 | 4.7 | XGBoost | 1.63% (n=1994) | -23.28% | ce146867f6cd4f198284134dcb8fc3d4 |
 | 4.8 | Market filter (top-3 liquid) | 25.38% (n=323) | +0.47% | c8ada2de6f384265b3e9d2cc441c22f0 |
+| 4.9 | 1x2-only + variants | best=25.24% top5ext (n=335) | -0.14% | 1007c1a470f04d4b9f57b949a3894e35 |
 
 ## Accepted Features
 Baseline set из step 1.4 (33 фичи):
