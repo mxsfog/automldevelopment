@@ -1,6 +1,34 @@
+# UAF runtime
+.uaf/
 
-# UAF эфемерные файлы
-.uaf/mlflow.db
-.uaf/mlruns/
-.uaf/budget_status.json
-.uaf/mlflow_context.json
+# Данные (приватные, не для публикации)
+data/*/
+!data/example/
+
+# Бэкапы
+*.zip
+
+# CatBoost артефакты
+catboost_info/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ruff_cache/
+
+# Модели и артефакты
+*.cbm
+*.lgb
+*.xgb
+*.pkl
+*.joblib
+
+# IDE
+.idea/
+.vscode/
+
+# DVC
+.dvc/tmp/

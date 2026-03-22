@@ -144,6 +144,9 @@ _DEFAULT_BASELINE_STEPS = [
 # Максимум 5 shadow feature шагов в Phase 2
 _MAX_FEATURE_STEPS = 5
 
+# Порог бюджета для активации Phase 5
+_ARCHITECTURE_INNOVATION_THRESHOLD = 0.6
+
 # Шаблон program.md
 _PROGRAM_MD_TEMPLATE = """\
 # Research Program: {{ task_title }}
@@ -254,7 +257,7 @@ Best {{ metric_name }} = **{{ prev_best_metric }}**.
       )
   else:
       # Fallback: ручное воспроизведение через model_file
-      # Загрузить модель, применить фичи из meta["feature_names"], sport_filter из meta
+      # Загрузить модель, применить фичи из meta["feature_names"], segment_filter из meta
       raise FileNotFoundError(f"pipeline.pkl не найден в {best_dir}. Fallback через model_file.")
   ```
   4. Залогировать в MLflow как "chain/verify" с тегом reproduced_roi
@@ -330,11 +333,72 @@ Best {{ metric_name }} = **{{ prev_best_metric }}**.
 2. Threshold optimization: подбор порога вероятности для максимизации {{ metric_name }}
 3. Новые фичи: взаимодействия, ratio-фичи, временные паттерны
 4. Калибровка вероятностей: CalibratedClassifierCV
-5. Сегментация: отдельные модели по Sport/Market/Is_Parlay
+5. Сегментация: отдельные модели по сегментам из task.yaml research_preferences.segment_columns
 6. Дополнительные данные: поиск публичных датасетов (WebSearch) для обогащения
 
 Каждая гипотеза Phase 4 оформляется как Step 4.N в Iteration Log.
 При застое 3+ итераций — Plateau Research Protocol обязателен.
+
+### Phase 5: Architecture Innovation
+
+**Trigger:** 3+ итерации Phase 4 без улучшения >0.5%, **или** `budget_fraction_used` > {{ arch_innovation_threshold }}
+
+**Цель:** выйти за список стандартных методов и придумать архитектуру,
+специфичную для ЭТОЙ задачи ({{ task_type }}, метрика {{ metric_name }}).
+
+**Обязательный процесс:**
+
+**Шаг 5.1 — WebSearch** (минимум 2 запроса):
+```
+"{{ task_type }} {{ metric_name }} novel approach 2024 2025 arxiv"
+"tabular {{ task_type }} deep learning architecture 2025"
+"{{ task_type }} winning solution feature engineering kaggle 2024"
+```
+Читай и анализируй результаты перед следующим шагом.
+
+**Шаг 5.2 — Sequential Thinking** (минимум 5 шагов):
+1. Какие структурные свойства задачи не эксплуатируются текущими методами?
+2. Что у этих данных есть, чего нет в стандартном tabular датасете?
+3. Какой inductive bias нужен для этой задачи?
+4. Что делают топ-решения на Kaggle для похожих задач?
+5. Какой нестандартный подход максимально повысит {{ metric_name }}?
+
+**Шаг 5.3 — Формулировка гипотез:**
+Запиши в program.md:
+```
+## Architecture Innovation Hypotheses (Phase 5)
+- Hypothesis A: <архитектура> — ожидаемый прирост <N>%
+- Hypothesis B: <архитектура> — ожидаемый прирост <N>%
+- Выбранная: <A или B> — обоснование
+```
+
+**Шаг 5.4 — Реализация** (минимум 2 нестандартных подхода):
+Примеры нестандартных архитектур:
+- Кастомная PyTorch нейросеть с custom loss под {{ metric_name }}
+- Нестандартная функция потерь (asymmetric, ordinal, direct metric optimization)
+- Graph representation данных (если есть структура связей)
+- Sequence model для временных паттернов (LSTM/Transformer на временных рядах)
+- Bayesian approach для uncertainty-aware предсказаний
+- Meta-learning / few-shot если есть группировка по задачам
+
+```python
+with mlflow.start_run(run_name="phase5/architecture_innovation") as run:
+    mlflow.set_tag("session_id", SESSION_ID)
+    mlflow.set_tag("type", "architecture_innovation")
+    mlflow.set_tag("hypothesis", "<название гипотезы>")
+    mlflow.log_metric("{{ metric_name }}", result)
+    mlflow.set_tag("status", "success")
+```
+
+**Шаг 5.5 — Сравнение:**
+- Сравни с baseline из Phase 1
+- Если метрика улучшилась → обнови BestPipeline (см. Model Artifact Protocol)
+- Задокументируй что сработало / не сработало в Iteration Log
+
+**Правила Phase 5:**
+- НЕ повторять шаги Phase 4
+- Минимум 2 нестандартных эксперимента
+- Каждый эксперимент логируется с `type=architecture_innovation`
 
 ## Current Status
 - **Active Phase:** {% if best_model_path %}Phase 4 (chain continuation){% else %}Phase 1{% endif %}
@@ -408,11 +472,42 @@ mlflow.log_metric("{{ metric_name }}_mean", mean_score)
 mlflow.log_metric("{{ metric_name }}_std", std_score)
 ```
 
+### Структура файлов (ОБЯЗАТЕЛЬНО)
+
+Все эксперименты пишутся в **два файла**:
+
+**`experiments/common.py`** — общий код, создаётся один раз в начале:
+- загрузка данных
+- функции calc_metric, find_threshold, time_split
+- константы: SEED, FEATURES_BASE, TEST_CUTOFF
+
+**`experiments/run.py`** — единый файл всех экспериментов, дополняется по ходу работы.
+Структура:
+```python
+# === STEP 4.0: Chain Verification ===
+# ...код...
+# RESULT: {{ metric_name }}=X.XX%, n_selected=N
+# STATUS: done
+
+# === STEP 4.1: <название> ===
+# HYPOTHESIS: <гипотеза>
+# ...код...
+# RESULT: roi=X.XX%
+# STATUS: done / reject
+
+# === STEP 4.2: <название> ===
+# ...
+```
+
+**Запрещено** создавать отдельный .py файл на каждый эксперимент.
+Весь код добавляется в `run.py` через Edit tool (append секции).
+Это позволяет видеть полную историю и не повторять уже сделанное.
+
 ### Code Quality
-После создания каждого Python-файла:
+После каждого добавления в run.py:
 ```bash
-ruff format {filepath}
-ruff check {filepath} --fix
+ruff format experiments/run.py
+ruff check experiments/run.py --fix
 ```
 Если после --fix остаются ошибки — исправь вручную.
 
@@ -470,11 +565,91 @@ except FileNotFoundError:
 2. **Target encoding leakage** — fit только на train, transform на val/test.
 
 3. **Future leakage** — при time_series split никаких фичей из будущего.
-   Проверь: нет ли колонок которые появляются ПОСЛЕ события (Payout_USD, финальный счёт).
+   Проверь: нет ли колонок которые появляются ПОСЛЕ события (см. leakage_prevention.forbidden_future_columns в task.yaml).
 
 4. **Санитарная проверка**: если {{ metric_name }} > {% if leakage_sanity_threshold %}{{ leakage_sanity_threshold }}{% else %}3× baseline{% endif %} — это почти наверняка leakage.
    Остановись, найди причину, исправь до продолжения.
    UAF BudgetController автоматически отклонит результат с алертом MQ-LEAKAGE-SUSPECT.
+
+### Leakage Investigation Protocol
+
+**Триггер:** `budget_status.json` содержит `"investigate_leakage": true`
+(метрика превысила `leakage_soft_warning` = {{ leakage_soft_warning if leakage_soft_warning else "N/A" }})
+
+Когда видишь этот флаг — СТОП. Не запускай следующий эксперимент.
+Выполни шаги по порядку, результаты залогируй в MLflow как отдельный run с `type=leakage_investigation`.
+
+#### STEP L.1 — SHAP Analysis
+```python
+import shap
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X_train)
+feature_importance = pd.DataFrame({
+    "feature": features,
+    "shap_mean_abs": np.abs(shap_values).mean(axis=0)
+}).sort_values("shap_mean_abs", ascending=False)
+print(feature_importance.head(10))
+# Флаг подозрительной фичи: importance > 2× следующей по важности
+top_imp = feature_importance["shap_mean_abs"].iloc[0]
+second_imp = feature_importance["shap_mean_abs"].iloc[1]
+suspicious = list(feature_importance[feature_importance["shap_mean_abs"] > 2 * second_imp]["feature"])
+```
+
+#### STEP L.2 — Temporal Consistency Check
+```python
+# Для каждой подозрительной фичи: сравни корреляцию с текущим и будущим target
+for feat in suspicious:
+    corr_current = df[feat].corr(df["{{ target_column }}"])
+    corr_future = df[feat].corr(df["{{ target_column }}"].shift(-1))
+    if abs(corr_future) > abs(corr_current):
+        print(f"LEAKAGE: {feat} — корреляция с target[t+1] ({corr_future:.3f}) > target[t] ({corr_current:.3f})")
+```
+
+#### STEP L.3 — Permutation Test
+```python
+# Перемешай подозрительную фичу (seed=42), проверь падение метрики
+from numpy.random import default_rng
+rng = default_rng(42)
+for feat in suspicious:
+    X_permuted = X_test.copy()
+    X_permuted[feat] = rng.permutation(X_permuted[feat].values)
+    metric_permuted = calc_metric(model, X_permuted, y_test)
+    drop_pct = (metric_original - metric_permuted) / (abs(metric_original) + 1e-10) * 100
+    if drop_pct < 5:
+        print(f"LEAKAGE: {feat} — метрика упала только на {drop_pct:.1f}% после permutation")
+```
+
+#### STEP L.4 — Retrain Without Suspicious Features
+```python
+features_clean = [f for f in features if f not in confirmed_leakage_features]
+model_clean = train_model(X_train[features_clean], y_train)
+metric_clean = calc_metric(model_clean, X_test[features_clean], y_test)
+print(f"metric_clean = {metric_clean:.4f}")
+```
+
+#### STEP L.5 — Verdict & MLflow Logging
+```python
+with mlflow.start_run(run_name="leakage/investigation") as run:
+    mlflow.set_tag("session_id", SESSION_ID)
+    mlflow.set_tag("type", "leakage_investigation")
+    mlflow.set_tag("leakage_verdict", "confirmed" | "suspected" | "clean")
+    mlflow.set_tag("leakage_features", str(suspicious_features))
+    mlflow.log_metric("metric_clean", metric_clean)
+    mlflow.set_tag("status", "success")
+
+# Если verdict == "clean": сохранить как BestPipeline (см. Model Artifact Protocol)
+# Если verdict == "confirmed": удалить фичи, пересохранить pipeline без них
+# Написать leakage_report.md:
+report_lines = [
+    "# Leakage Investigation Report",
+    f"- Investigated features: {suspicious_features}",
+    f"- Verdict: {verdict}",
+    f"- metric_original: {metric_original:.4f}",
+    f"- metric_clean: {metric_clean:.4f}",
+    f"- leakage_features: {confirmed_leakage_features}",
+]
+Path("leakage_report.md").write_text("\n".join(report_lines))
+```
 
 ### Model Artifact Protocol (ОБЯЗАТЕЛЬНО для chain continuation)
 
@@ -497,31 +672,23 @@ class BestPipeline:
         self,
         model,                      # обученная модель (CatBoost/LGBM/XGBoost/sklearn)
         feature_names: list[str],   # колонки, которые подаются в model.predict_proba
-        threshold: float,           # порог вероятности для фильтрации ставок
-        sport_filter: list[str],    # виды спорта для ИСКЛЮЧЕНИЯ (пустой список = не фильтровать)
+        threshold: float,           # порог вероятности для отбора примеров
         framework: str,             # "catboost" | "lgbm" | "xgboost" | "sklearn"
+        segment_filter: dict | None = None,  # {col: [values_to_exclude]} или None
         # Добавь сюда все fitted preprocessors: encoders, scalers, imputers
         # Например:
         # target_encoder=None,
-        # elo_scaler=None,
     ):
         self.model = model
         self.feature_names = feature_names
         self.threshold = threshold
-        self.sport_filter = sport_filter
         self.framework = framework
+        self.segment_filter = segment_filter or {}
         # self.target_encoder = target_encoder
-        # self.elo_scaler = elo_scaler
 
     def _build_features(self, df):
         # ВАЖНО: вставь сюда весь feature engineering из твоего train-скрипта
         # Это должна быть ТОЧНАЯ копия кода из обучения
-        # Например:
-        # df = df.copy()
-        # df["odds_bucket"] = pd.cut(df["Odds"], bins=[1, 1.5, 2.0, 3.0, 10], labels=False)
-        # if self.target_encoder:
-        #     df["sport_enc"] = self.target_encoder.transform(df[["Sport"]])
-        # ...
         return df[self.feature_names]
 
     def predict_proba(self, df):
@@ -530,27 +697,31 @@ class BestPipeline:
         return self.model.predict_proba(X)[:, 1]
 
     def evaluate(self, df) -> dict:
-        # Вычислить ROI и другие метрики на RAW DataFrame.
-        # Returns: dict с ключами roi, n_selected, threshold
-        # Фильтрация по sport_filter (ИСКЛЮЧАЕМ указанные виды)
-        if self.sport_filter:
-            df = df[~df["Sport"].isin(self.sport_filter)].copy()
+        # Вычислить целевую метрику на RAW DataFrame.
+        # Returns: dict с ключами {{ metric_name }}, n_selected, threshold
+        #
+        # Применяем segment_filter: {col: [values_to_exclude]}
+        for col, exclude_vals in self.segment_filter.items():
+            if col in df.columns and exclude_vals:
+                df = df[~df[col].isin(exclude_vals)].copy()
 
         proba = self.predict_proba(df)
         mask = proba >= self.threshold
         selected = df[mask].copy()
 
         if len(selected) == 0:
-            return {"roi": -100.0, "n_selected": 0, "threshold": self.threshold}
+            return {"{{ metric_name }}": -100.0, "n_selected": 0, "threshold": self.threshold}
 
-        # ROI = (выигрыши - общие ставки) / общие ставки * 100
-        won_mask = selected["Status"] == "won"
-        total_stake = selected["USD"].sum()
-        total_payout = selected.loc[won_mask, "Payout_USD"].sum()
-        roi = (total_payout - total_stake) / total_stake * 100 if total_stake > 0 else -100.0
+        # ЗАДАЧА-СПЕЦИФИЧНЫЙ КОД: вычисли {{ metric_name }} по формуле из task.yaml
+        # Используй колонки из task.yaml (metric.formula) и данные в selected.
+        # Примеры (выбери подходящий для задачи):
+        #   ROI:      won = selected[target] == pos_class; metric = (payout.sum() - stake.sum()) / stake.sum() * 100
+        #   Accuracy: metric = (selected[target] == pos_class).mean() * 100
+        #   F1:       from sklearn.metrics import f1_score; metric = f1_score(y_true, y_pred) * 100
+        metric = ...  # замени на реальный расчёт
 
         return {
-            "roi": roi,
+            "{{ metric_name }}": metric,
             "n_selected": int(mask.sum()),
             "threshold": self.threshold,
         }
@@ -563,9 +734,9 @@ pipeline = BestPipeline(
     model=model,              # твоя обученная модель
     feature_names=features,   # list[str] — порядок важен
     threshold=best_threshold, # float
-    sport_filter=[],          # list[str] если есть фильтрация
     framework="catboost",     # catboost | lgbm | xgboost | sklearn
-    # target_encoder=encoder, # если использовался
+    segment_filter={},        # {"col": ["val1", "val2"]} или {}
+    # target_encoder=encoder,
 )
 joblib.dump(pipeline, "./models/best/pipeline.pkl")
 
@@ -582,10 +753,10 @@ metadata = {
     "{{ metric_name }}": ...,   # значение метрики (float) — ТОЧНО то же, что было залогировано
     "auc": ...,
     "threshold": best_threshold,
-    "n_bets": int(mask.sum()),
+    "n_selected": int(mask.sum()),
     "feature_names": features,
     "params": dict(model.get_params()) if hasattr(model, "get_params") else {},
-    "sport_filter": [],
+    "segment_filter": {},  # {col: [excluded_values]} — универсально для любой задачи
     "session_id": os.environ["UAF_SESSION_ID"],
 }
 with open("./models/best/metadata.json", "w") as f:
@@ -656,7 +827,7 @@ git commit -m "session {{ session_id }}: step {step_id} [mlflow_run_id: {run_id}
 [сравнение моделей: CatBoost vs LightGBM vs ансамбли]
 
 ## Segment Analysis
-[прибыльные сегменты: спорт, рынки, odds диапазоны]
+[прибыльные сегменты: ключевые значения из segment_columns в task.yaml]
 
 ## Stability & Validity
 [CV результаты, нет ли leakage, насколько стабильны результаты]
@@ -1273,6 +1444,12 @@ class ProgramMdGenerator:
         constraints = task.get("constraints", {})
 
         leakage_sanity_threshold = metric_cfg.get("leakage_sanity_threshold")
+        leakage_soft_warning = metric_cfg.get("leakage_soft_warning")
+
+        target_positive_class = (
+            data.get("target_positive_class")
+            or task_data.get("dataset", {}).get("target_positive_class", "1")
+        )
 
         env = Environment(undefined=StrictUndefined)
         template = env.from_string(_PROGRAM_MD_TEMPLATE)
@@ -1288,10 +1465,13 @@ class ProgramMdGenerator:
             best_model_path=best_model_path,
             prev_best_metric=prev_best_metric,
             leakage_sanity_threshold=leakage_sanity_threshold,
+            leakage_soft_warning=leakage_soft_warning,
+            arch_innovation_threshold=_ARCHITECTURE_INNOVATION_THRESHOLD,
             target_column=(
                 data.get("target_column")
                 or task.get("dataset", {}).get("target_column", "target")
             ),
+            target_positive_class=target_positive_class,
             metric_name=metric_name,
             metric_direction=metric_direction,
             task_type=task_type,

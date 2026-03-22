@@ -1,6 +1,0 @@
-{
-  "task_type": "tabular_classification",
-  "target_column": "Status",
-  "metric_name": "roi",
-  "metric_direction": "maximize"
-}

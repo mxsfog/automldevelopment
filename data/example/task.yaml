@@ -1,0 +1,38 @@
+task:
+  name: example_classification
+  description: >
+    Пример конфигурации UAF для задачи бинарной классификации.
+    Замените пути к данным, целевую колонку и метрику под вашу задачу.
+  type: tabular_classification  # tabular_classification | tabular_regression | nlp_classification | time_series
+
+data:
+  files:
+    - path: data/example/train.csv
+      role: main
+  target_column: target
+  target_positive_class: 1
+
+validation:
+  scheme: stratified_kfold   # stratified_kfold | time_series | group_kfold
+  n_splits: 5
+  seed: 42
+  test_holdout: true
+  test_ratio: 0.2
+
+metric:
+  name: roc_auc
+  direction: maximize          # maximize | minimize
+  target_value: 0.85
+  leakage_sanity_threshold: null   # null или число: если метрика > X — скорее всего leakage
+  leakage_soft_warning: null       # null или число: триггер для Leakage Investigation Protocol
+
+budget:
+  mode: fixed                  # fixed | dynamic
+  max_iterations: 20
+  max_time_hours: 4.0
+
+research_preferences:
+  feature_importance: true
+  shadow_feature_trick: true
+  segment_analysis: false
+  segment_columns: []

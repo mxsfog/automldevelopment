@@ -101,6 +101,7 @@ class BudgetConfig:
     metric_direction: Literal["maximize", "minimize"] = "maximize"
     metric_name: str = "roi"
     leakage_sanity_threshold: float | None = None
+    leakage_soft_warning: float | None = None
 
 
 @dataclass
@@ -122,6 +123,8 @@ class _MonitoringState:
     llm_signal_consecutive: int = 0
     triggered_alerts: set[str] = field(default_factory=set)
     data_schema_hash: str = ""
+    investigate_leakage: bool = False
+    leakage_investigated: bool = False
 
 
 class BudgetController:
@@ -276,8 +279,13 @@ class BudgetController:
                 )
 
             if self._state.best_metric is None:
-                self._state.best_metric = latest
-                alerts.append(self._make_alert("MQ-NEW-BEST", f"Первый результат: {latest:.6f}"))
+                leakage_alerts = self._check_leakage_thresholds(latest, is_first=True)
+                alerts.extend(leakage_alerts)
+                # Устанавливаем best_metric только если нет CRITICAL leakage алерта
+                if not any(a.code == "MQ-LEAKAGE-SUSPECT" and a.level == "CRITICAL" for a in leakage_alerts):
+                    self._state.best_metric = latest
+                    if not leakage_alerts:
+                        alerts.append(self._make_alert("MQ-NEW-BEST", f"Первый результат: {latest:.6f}"))
             else:
                 is_better = (
                     latest > self._state.best_metric
@@ -285,31 +293,15 @@ class BudgetController:
                     else latest < self._state.best_metric
                 )
                 if is_better and not math.isnan(latest):
-                    # Sanity check: не обновляем best_metric если превышен leakage threshold
-                    leakage_threshold = self.config.leakage_sanity_threshold
-                    if leakage_threshold is not None and abs(latest) > leakage_threshold:
-                        alerts.append(
-                            self._make_alert(
-                                "MQ-LEAKAGE-SUSPECT",
-                                f"Метрика {latest:.4f} превышает sanity threshold "
-                                f"{leakage_threshold}. Вероятный leakage — "
-                                f"best_metric НЕ обновлена. "
-                                f"Проверь threshold selection и train/test split.",
-                            )
-                        )
-                        logger.warning(
-                            "[MQ-LEAKAGE-SUSPECT] Подозрение на leakage: %.4f > threshold %.4f. "
-                            "best_metric не обновлена.",
-                            latest,
-                            leakage_threshold,
-                        )
-                    else:
+                    leakage_alerts = self._check_leakage_thresholds(latest, is_first=False)
+                    alerts.extend(leakage_alerts)
+                    # Обновляем best_metric только если нет CRITICAL leakage алерта
+                    if not any(a.code == "MQ-LEAKAGE-SUSPECT" and a.level == "CRITICAL" for a in leakage_alerts):
                         self._state.best_metric = latest
-                        alerts.append(
-                            self._make_alert(
-                                "MQ-NEW-BEST", f"Новый лучший результат: {latest:.6f}"
+                        if not leakage_alerts:
+                            alerts.append(
+                                self._make_alert("MQ-NEW-BEST", f"Новый лучший результат: {latest:.6f}")
                             )
-                        )
                 elif (
                     len(metrics_history) >= 3
                     and "MQ-DEGRADATION" not in self._state.triggered_alerts
@@ -487,7 +479,7 @@ class BudgetController:
         successful = [
             r
             for r in runs
-            if r.data.tags.get("type") == "experiment"
+            if r.data.tags.get("type") in ("experiment", "chain_verify")
             and r.data.tags.get("status") == "success"
             and r.data.metrics
         ]
@@ -517,9 +509,14 @@ class BudgetController:
 
         Стратегия (в порядке приоритета):
         1. Точное совпадение ключа с target_metric.
-        2. Ключи вида "{target_metric}_best*" — берём лучшее по direction.
-        3. Все ключи содержащие target_metric — берём лучшее по direction.
-        4. Fallback: первая не-NaN метрика.
+        2. Ключи вида "{target}_test_best" или "best_{target}_test" — тест-метрика явная.
+        3. Ключи содержащие target И "test", но НЕ содержащие "val" — test ROI.
+        4. Ключи вида "{target}_best*" без "val".
+        5. Любые ключи с target, кроме явных val-метрик.
+        6. Fallback: первая не-NaN метрика.
+
+        Val-метрики (содержащие "val") намеренно исключаются: они всегда выше test
+        и не отражают реальное качество модели.
         """
         import math
 
@@ -531,19 +528,44 @@ class BudgetController:
         if target_metric in clean:
             return clean[target_metric]
 
-        # 2. Ключи вида "{target}_best*" — приоритет выше чем просто содержит
-        best_keys = [k for k in clean if k.startswith(f"{target_metric}_best")]
+        # 2. Явные test-метрики: {target}_test_best, best_{target}_test, {target}_test
+        priority_patterns = [
+            f"{target_metric}_test_best",
+            f"best_{target_metric}_test",
+            f"{target_metric}_test",
+        ]
+        for pat in priority_patterns:
+            if pat in clean:
+                return clean[pat]
+
+        # 3. Ключи содержащие target И "test", без "val"
+        test_keys = [
+            k for k in clean
+            if target_metric in k and "test" in k and "val" not in k
+        ]
+        if test_keys:
+            vals = [clean[k] for k in test_keys]
+            return max(vals) if maximize else min(vals)
+
+        # 4. Ключи {target}_best* без val
+        best_keys = [
+            k for k in clean
+            if k.startswith(f"{target_metric}_best") and "val" not in k
+        ]
         if best_keys:
             vals = [clean[k] for k in best_keys]
             return max(vals) if maximize else min(vals)
 
-        # 3. Любой ключ содержащий target_metric
-        containing = [k for k in clean if target_metric in k]
-        if containing:
-            vals = [clean[k] for k in containing]
+        # 5. Любые ключи с target, кроме явных val-метрик
+        non_val_keys = [
+            k for k in clean
+            if target_metric in k and "val" not in k
+        ]
+        if non_val_keys:
+            vals = [clean[k] for k in non_val_keys]
             return max(vals) if maximize else min(vals)
 
-        # 4. Fallback
+        # 6. Fallback (включая val, если больше ничего нет)
         return next(iter(clean.values()))
 
     def _extract_llm_signal(self, runs: list) -> float:  # type: ignore[type-arg]
@@ -772,6 +794,11 @@ class BudgetController:
             Список строк-подсказок.
         """
         hints = []
+        if self._state.investigate_leakage and not self._state.leakage_investigated:
+            hints.append(
+                "investigate_leakage: true — метрика превысила soft_warning порог. "
+                "Запусти Leakage Investigation Protocol (STEP L.1–L.5 в program.md)."
+            )
         if budget_fraction >= 0.8:
             iter_cap = self.config.max_iterations or self.config.safety_cap_iterations
             remaining = int((1 - budget_fraction) * iter_cap)
@@ -860,6 +887,8 @@ class BudgetController:
             budget_fraction_used=round(budget_fraction, 4),
             warning_triggered=warning_triggered,
             convergence_signal=llm_signal,
+            investigate_leakage=self._state.investigate_leakage,
+            leakage_investigated=self._state.leakage_investigated,
             timestamp=time.time(),
         )
 
@@ -925,6 +954,106 @@ class BudgetController:
                 os.kill(self._claude_pid, signal.SIGKILL)
 
         self._stop_event.set()
+
+    def _check_leakage_thresholds(
+        self, metric_value: float, is_first: bool
+    ) -> list[AlertEntry]:
+        """Проверяет soft_warning и sanity thresholds для leakage detection.
+
+        Двухуровневая система:
+        - soft_warning: добавляет WARNING алерт, устанавливает investigate_leakage флаг.
+        - sanity_threshold: проверяет MLflow на clean verdict, если нет — CRITICAL.
+
+        Args:
+            metric_value: текущее значение метрики.
+            is_first: True если это первое наблюдение метрики.
+
+        Returns:
+            Список AlertEntry (пустой если нет проблем).
+        """
+        result: list[AlertEntry] = []
+        abs_val = abs(metric_value)
+        soft_thr = self.config.leakage_soft_warning
+        hard_thr = self.config.leakage_sanity_threshold
+        ctx = "Первый результат" if is_first else "Метрика"
+
+        if hard_thr is not None and abs_val > hard_thr:
+            # Проверяем есть ли уже верифицированный clean run
+            if self._has_clean_leakage_verdict(hard_thr):
+                self._state.leakage_investigated = True
+                logger.info(
+                    "[MQ-LEAKAGE-SUSPECT] %s %.4f > sanity threshold %.4f, "
+                    "но найден clean leakage verdict — продолжаем.",
+                    ctx,
+                    metric_value,
+                    hard_thr,
+                )
+            else:
+                result.append(
+                    AlertEntry(
+                        code="MQ-LEAKAGE-SUSPECT",
+                        level="CRITICAL",
+                        message=(
+                            f"{ctx} {metric_value:.4f} превышает sanity threshold {hard_thr}. "
+                            f"Вероятный leakage — best_metric НЕ обновлена. "
+                            f"Запусти Leakage Investigation Protocol и залогируй leakage_verdict=clean."
+                        ),
+                    )
+                )
+                logger.warning(
+                    "[MQ-LEAKAGE-SUSPECT] %s %.4f > sanity threshold %.4f. "
+                    "Нет clean verdict в MLflow. CRITICAL.",
+                    ctx,
+                    metric_value,
+                    hard_thr,
+                )
+        elif soft_thr is not None and abs_val > soft_thr:
+            self._state.investigate_leakage = True
+            result.append(
+                AlertEntry(
+                    code="MQ-LEAKAGE-SUSPECT",
+                    level="WARNING",
+                    message=(
+                        f"{ctx} {metric_value:.4f} превышает soft_warning {soft_thr}. "
+                        f"Требуется Leakage Investigation Protocol (см. program.md)."
+                    ),
+                )
+            )
+            logger.warning(
+                "[MQ-LEAKAGE-SUSPECT] %s %.4f > soft_warning %.4f. investigate_leakage=True.",
+                ctx,
+                metric_value,
+                soft_thr,
+            )
+
+        return result
+
+    def _has_clean_leakage_verdict(self, threshold: float) -> bool:
+        """Проверяет наличие в MLflow run с leakage_verdict=clean и метрикой ниже threshold.
+
+        Args:
+            threshold: sanity threshold — clean metric должна быть ниже этого значения.
+
+        Returns:
+            True если найден верифицированный clean run.
+        """
+        try:
+            runs = self._client.search_runs(
+                experiment_ids=[self.experiment_id],
+                filter_string=(
+                    f"tags.session_id = '{self.session_id}' "
+                    f"AND tags.leakage_verdict = 'clean'"
+                ),
+                max_results=10,
+            )
+            for run in runs:
+                clean_metric = run.data.metrics.get("metric_clean")
+                if clean_metric is not None and abs(clean_metric) <= threshold:
+                    return True
+            return False
+        except Exception as exc:
+            logger.warning("Ошибка проверки leakage verdict в MLflow: %s", exc)
+            return False
 
     @staticmethod
     def _make_alert(code: str, message: str) -> AlertEntry:

@@ -1,1 +1,0 @@
-2026-03-21T13:43:50 INFO [claude] Failed to authenticate. API Error: 403 {"error":{"type":"forbidden","message":"Request not allowed"}}

@@ -308,10 +308,12 @@ class ResearchSessionController:
                 target_column=target_column,
             )
             data_schema = loader.load()
+            n_rows = data_schema.splits[0].n_rows if data_schema.splits else 0
+            n_features = len(data_schema.features)
             logger.info(
                 "[DATA_LOADING] Загружено: %d строк, %d признаков",
-                data_schema.train_rows,
-                data_schema.feature_count,
+                n_rows,
+                n_features,
             )
         except Exception as exc:
             logger.warning("[DATA_LOADING] Ошибка загрузки данных: %s", exc)
@@ -440,6 +442,7 @@ class ResearchSessionController:
             metric_direction=metric_cfg.get("direction", "maximize"),
             metric_name=metric_cfg.get("name", "roi"),
             leakage_sanity_threshold=metric_cfg.get("leakage_sanity_threshold"),
+            leakage_soft_warning=metric_cfg.get("leakage_soft_warning"),
         )
 
         experiment_id = self._mlflow_experiment_id or "0"

@@ -102,6 +102,8 @@ class BudgetStatusV21:
     warning_triggered: bool = False
     convergence_signal: float = 0.0
     runs_per_iteration: int = 1
+    investigate_leakage: bool = False
+    leakage_investigated: bool = False
     timestamp: float = field(default_factory=time.time)
 
 
@@ -185,6 +187,8 @@ def _status_to_dict(status: BudgetStatusV21) -> dict[str, Any]:
         "warning_triggered": status.warning_triggered,
         "convergence_signal": status.convergence_signal,
         "runs_per_iteration": status.runs_per_iteration,
+        "investigate_leakage": status.investigate_leakage,
+        "leakage_investigated": status.leakage_investigated,
         "timestamp": status.timestamp,
     }
 
@@ -236,5 +240,7 @@ def _dict_to_status(data: dict[str, Any]) -> BudgetStatusV21:
         warning_triggered=data.get("warning_triggered", False),
         convergence_signal=data.get("convergence_signal", 0.0),
         runs_per_iteration=data.get("runs_per_iteration", 1),
+        investigate_leakage=data.get("investigate_leakage", False),
+        leakage_investigated=data.get("leakage_investigated", False),
         timestamp=data.get("timestamp", 0.0),
     )

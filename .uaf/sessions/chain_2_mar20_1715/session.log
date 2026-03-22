@@ -1,8 +1,0 @@
-2026-03-20T17:48:06 INFO [claude] Сессия **chain_2_mar20_1715** завершена. hard_stop=true, 20/20 итераций.
-2026-03-20T17:48:06 INFO [claude] 
-2026-03-20T17:48:06 INFO [claude] **Итог:**
-2026-03-20T17:48:06 INFO [claude] - **ROI=18.61%** (target 10% превышен на 8.61 п.п.)
-2026-03-20T17:48:06 INFO [claude] - Стратегия: CB50 Ensemble на ELO-only subset, robust threshold t=0.73
-2026-03-20T17:48:06 INFO [claude] - Прогресс vs chain_1: 7.32% → 18.61% (+11.29 п.п.)
-2026-03-20T17:48:06 INFO [claude] - Ключевой прорыв: ELO-данные (Old_ELO, Winrate, K_Factor) диверсифицировали feature importance
-2026-03-20T17:48:06 INFO [claude] - 20 MLflow экспериментов, 4 фазы, коммит `62884df`
