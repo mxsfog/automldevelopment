@@ -146,3 +146,4 @@ Session dir: /mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1941
 2026-03-21T19:42:06 INFO     [uaf.runner.claude_runner] Запуск Claude Code: cmd=claude --model claude-sonnet-4-6..., cwd=/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1941
 2026-03-21T19:42:06 INFO     [uaf.runner.claude_runner] Claude Code запущен: PID=364592, pid_file=/mnt/d/automl-research/.uaf/sessions/chain_2_mar21_1941/claude_pid.txt
 2026-03-21T19:50:08 INFO     [uaf.budget.controller] [MQ-NEW-BEST] Первый результат: 56.796594
+2026-03-21T20:08:41 WARNING  [uaf.budget.controller] [MQ-DEGRADATION] Деградация метрики: лучшее=56.7966
