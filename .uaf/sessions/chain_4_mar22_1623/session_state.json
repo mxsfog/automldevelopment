@@ -1,0 +1,16 @@
+{
+  "session_id": "chain_4_mar22_1623",
+  "state": "EXECUTING",
+  "work_dir": "/mnt/d/automl-research",
+  "task_path": "/mnt/d/automl-research/data/sports_betting/task.yaml",
+  "budget_path": null,
+  "claude_model": "claude-sonnet-4-6",
+  "fully_autonomous": true,
+  "mlflow_experiment_id": "47",
+  "mlflow_tracking_uri": "http://127.0.0.1:5000",
+  "created_at": "2026-03-22T13:24:10.953340+00:00",
+  "updated_at": "2026-03-22T13:24:10.953340+00:00",
+  "approval_result": null,
+  "error": null,
+  "resume_count": 0
+}
