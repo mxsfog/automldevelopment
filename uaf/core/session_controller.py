@@ -11,6 +11,8 @@ from typing import Any, Literal
 
 import yaml
 
+from uaf import MLFLOW_DEFAULT_URI
+
 logger = logging.getLogger(__name__)
 
 # Состояния state machine
@@ -73,7 +75,7 @@ class SessionStateData:
     claude_model: str
     fully_autonomous: bool
     mlflow_experiment_id: str | None = None
-    mlflow_tracking_uri: str = "http://127.0.0.1:5000"
+    mlflow_tracking_uri: str = MLFLOW_DEFAULT_URI
     created_at: str = ""
     updated_at: str = ""
     approval_result: dict[str, Any] | None = None
@@ -107,7 +109,7 @@ class ResearchSessionController:
         session_id: str | None = None,
         claude_model: str = "claude-opus-4",
         fully_autonomous: bool = False,
-        mlflow_tracking_uri: str = "http://127.0.0.1:5000",
+        mlflow_tracking_uri: str = MLFLOW_DEFAULT_URI,
         prev_session_id: str | None = None,
     ) -> None:
         self.work_dir = work_dir.resolve()
@@ -131,6 +133,9 @@ class ResearchSessionController:
         self._state_lock = threading.Lock()
         self._budget_controller = None
         self._claude_runner = None
+        self._data_schema_path: Path | None = None
+        self._state_data: SessionStateData | None = None
+        self._ruff_report: object | None = None
 
         logger.info(
             "ResearchSessionController инициализирован: session_id=%s, work_dir=%s",
@@ -301,7 +306,7 @@ class ResearchSessionController:
         train_path = (self.work_dir / train_path_str).resolve()
 
         try:
-            from uaf.data.loader import DataLoader
+            from uaf.data.loader import DataLoader, save_data_schema
 
             loader = DataLoader(
                 train_path=train_path,
@@ -315,6 +320,9 @@ class ResearchSessionController:
                 n_rows,
                 n_features,
             )
+            schema_path = self._session_dir / "data_schema.json"
+            save_data_schema(data_schema, schema_path)
+            self._data_schema_path = schema_path
         except Exception as exc:
             logger.warning("[DATA_LOADING] Ошибка загрузки данных: %s", exc)
 
@@ -340,6 +348,7 @@ class ResearchSessionController:
             generator.prepare_context(
                 task_path=self.task_path,
                 session_id=self.session_id,
+                data_schema_path=self._data_schema_path,
                 improvement_context_path=improvement_context_path,
                 prev_session_dir=prev_session_dir,
             )
@@ -391,7 +400,7 @@ class ResearchSessionController:
             "edit_rounds": result.edit_rounds,
             "notes": result.notes,
         }
-        if hasattr(self, "_state_data"):
+        if self._state_data is not None:
             self._state_data.approval_result = approval_dict
         self._save_state()
 
@@ -606,7 +615,8 @@ class ResearchSessionController:
                     candidates.append((path, framework, path.stat().st_mtime))
 
         if not candidates:
-            logger.info("[AUTO-SAVE] model files не найдены, пропуск")
+            logger.info("[AUTO-SAVE] model files не найдены, пробуем MLflow fallback")
+            self._auto_save_from_mlflow(models_best_dir, metadata_file)
             return
 
         best_path, framework, _ = max(candidates, key=lambda x: x[2])
@@ -691,6 +701,70 @@ class ResearchSessionController:
             best_value or 0.0,
         )
 
+    def _auto_save_from_mlflow(
+        self, models_best_dir: Path, metadata_file: Path
+    ) -> None:
+        """Fallback: создаёт metadata.json из лучшего MLflow run без model file.
+
+        Позволяет chain continuation даже если Claude не сохранил pipeline.
+        Следующая сессия получит метрику и параметры лучшего run.
+        """
+        if not self._mlflow_experiment_id:
+            logger.warning("[AUTO-SAVE] MLflow experiment_id не задан, пропуск fallback")
+            return
+
+        metric_name = self._task_config.get("metric", {}).get("name", "metric")
+        metric_direction = self._task_config.get("metric", {}).get("direction", "maximize")
+
+        try:
+            from mlflow.tracking import MlflowClient
+
+            client = MlflowClient(self.mlflow_tracking_uri)
+            order = f"metrics.{metric_name} DESC" if metric_direction == "maximize" else f"metrics.{metric_name} ASC"
+            runs = client.search_runs(
+                experiment_ids=[self._mlflow_experiment_id],
+                filter_string="tags.type = 'experiment' AND tags.status = 'success'",
+                order_by=[order],
+                max_results=1,
+            )
+            if not runs:
+                runs = client.search_runs(
+                    experiment_ids=[self._mlflow_experiment_id],
+                    filter_string="attributes.status = 'FINISHED'",
+                    order_by=[order],
+                    max_results=1,
+                )
+            if not runs:
+                logger.info("[AUTO-SAVE] MLflow fallback: нет completed runs")
+                return
+
+            best_run = runs[0]
+            best_metric = best_run.data.metrics.get(metric_name)
+            if best_metric is None:
+                logger.info("[AUTO-SAVE] MLflow fallback: метрика %s не найдена", metric_name)
+                return
+
+            models_best_dir.mkdir(parents=True, exist_ok=True)
+            metadata: dict[str, Any] = {
+                "session_id": self.session_id,
+                "mlflow_run_id": best_run.info.run_id,
+                "mlflow_run_name": best_run.info.run_name,
+                metric_name: best_metric,
+                "params": dict(best_run.data.params),
+                "metrics": {k: v for k, v in best_run.data.metrics.items()},
+                "auto_saved": True,
+                "auto_save_source": "mlflow_fallback",
+            }
+            metadata_file.write_text(json.dumps(metadata, indent=2, ensure_ascii=False))
+            logger.info(
+                "[AUTO-SAVE] MLflow fallback: metadata.json создан из run %s (%s=%.4f)",
+                best_run.info.run_name,
+                metric_name,
+                best_metric,
+            )
+        except Exception as exc:
+            logger.warning("[AUTO-SAVE] MLflow fallback failed: %s", exc)
+
     def _do_reporting(self) -> None:
         """REPORTING: ReportGenerator -> LaTeX -> PDF."""
         logger.info("[REPORTING] Генерация отчёта")
@@ -745,19 +819,16 @@ class ResearchSessionController:
         pdf_files = list(report_dir.glob("*.pdf")) if report_dir.exists() else []
         pdf_path = pdf_files[0] if pdf_files else None
 
-        print("\n" + "=" * 70)
-        print(f"  UAF Сессия завершена: {self.session_id}")
-        print("=" * 70)
+        logger.info("UAF Сессия завершена: %s", self.session_id)
         if pdf_path:
-            print(f"  Отчёт: {pdf_path}")
+            logger.info("Отчёт: %s", pdf_path)
         else:
             tex_files = list(report_dir.glob("*.tex")) if report_dir.exists() else []
             if tex_files:
-                print(f"  Отчёт (.tex fallback): {tex_files[0]}")
-        print(f"  MLflow UI: {self.mlflow_tracking_uri}")
-        print(f"  Experiment: uaf/{self.session_id}")
-        print(f"  Session dir: {self._session_dir}")
-        print("=" * 70)
+                logger.info("Отчёт (.tex fallback): %s", tex_files[0])
+        logger.info("MLflow UI: %s", self.mlflow_tracking_uri)
+        logger.info("Experiment: uaf/%s", self.session_id)
+        logger.info("Session dir: %s", self._session_dir)
 
     def _transition(self, new_state: str) -> None:
         """Переводит state machine в новое состояние.

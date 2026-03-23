@@ -32,3 +32,4 @@ __pycache__/
 
 # DVC
 .dvc/tmp/
+.uaf/sessions/

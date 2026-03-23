@@ -4,22 +4,21 @@ version = "0.1.0"
 description = "Universal AutoResearch Framework — автоматизация ML-экспериментов через Claude Code"
 requires-python = ">=3.10"
 dependencies = [
-    "mlflow>=2.15.0",
-    "dvc>=3.51.0",
-    "lightgbm>=4.5.0",
-    "pandas>=2.2.0",
-    "pyarrow>=17.0.0",
-    "numpy>=1.26.0",
-    "scikit-learn>=1.5.0",
-    "scipy>=1.14.0",
-    "jinja2>=3.1.4",
-    "pydantic>=2.9.0",
-    "pydantic-settings>=2.5.0",
-    "pyyaml>=6.0.2",
-    "click>=8.1.7",
-    "rich>=13.8.0",
-    "psutil>=6.0.0",
-    "sqlalchemy>=2.0.0",
+    "mlflow>=2.15.0,<4",
+    "dvc>=3.51.0,<4",
+    "lightgbm>=4.5.0,<5",
+    "pandas>=2.2.0,<3",
+    "pyarrow>=17.0.0,<19",
+    "numpy>=1.26.0,<3",
+    "scikit-learn>=1.5.0,<2",
+    "scipy>=1.14.0,<2",
+    "jinja2>=3.1.4,<4",
+    "pydantic>=2.9.0,<3",
+    "pydantic-settings>=2.5.0,<3",
+    "pyyaml>=6.0.2,<7",
+    "click>=8.1.7,<9",
+    "rich>=13.8.0,<14",
+    "psutil>=6.0.0,<7",
 ]
 
 [project.scripts]

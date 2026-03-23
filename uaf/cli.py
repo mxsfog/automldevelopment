@@ -1,11 +1,21 @@
 """CLI точка входа UAF: uaf run / resume / status / report / health / analyze."""
 
+from __future__ import annotations
+
 import json
 import logging
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
+
+from uaf import MLFLOW_DEFAULT_URI
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+    from uaf.budget.status_file import BudgetStatusV21
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +314,7 @@ def report_cmd(session_id: str, work_dir: Path) -> None:
 
     # Читаем состояние для конфигурации
     task_config: dict = {}
-    tracking_uri = "http://127.0.0.1:5000"
+    tracking_uri = MLFLOW_DEFAULT_URI
     experiment_id = "0"
     claude_model = "claude-opus-4"
 
@@ -468,7 +478,7 @@ def analyze_cmd(session_id: str, work_dir: Path) -> None:
         click.echo(f"Сессия не найдена: {session_dir}", err=True)
         sys.exit(1)
 
-    tracking_uri = "http://127.0.0.1:5000"
+    tracking_uri = MLFLOW_DEFAULT_URI
     experiment_id = "0"
     target_metric = "metric"
     metric_direction = "maximize"
@@ -603,7 +613,7 @@ def cleanup_cmd(sessions_older_than: str, work_dir: Path) -> None:
     click.echo(f"Удалено {removed} сессий старше {sessions_older_than}")
 
 
-def _status_plain(status: object, session_id: str | None, uaf_dir: Path) -> None:
+def _status_plain(status: BudgetStatusV21 | None, session_id: str | None, uaf_dir: Path) -> None:
     """Fallback вывод статуса без rich.
 
     Args:
@@ -629,7 +639,7 @@ def _status_plain(status: object, session_id: str | None, uaf_dir: Path) -> None
             click.echo(f"    [{alert.level}] {alert.code}: {alert.message}")
 
 
-def _show_session_state(console: object, state_file: Path) -> None:
+def _show_session_state(console: Console, state_file: Path) -> None:
     """Показывает session_state.json в виде таблицы.
 
     Args:
@@ -646,6 +656,6 @@ def _show_session_state(console: object, state_file: Path) -> None:
         for k, v in state.items():
             if k not in ("approval_result",):
                 table.add_row(str(k), str(v))
-        console.print(table)  # type: ignore[union-attr]
+        console.print(table)
     except Exception as exc:
         click.echo(f"Ошибка чтения session_state.json: {exc}", err=True)

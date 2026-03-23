@@ -13,6 +13,8 @@ from typing import Any, Literal
 
 import yaml
 
+from uaf import MLFLOW_DEFAULT_URI
+
 logger = logging.getLogger(__name__)
 
 # Статус одного теста
@@ -157,7 +159,7 @@ class SmokeTestRunner:
         self,
         session_dir: Path,
         session_id: str,
-        mlflow_tracking_uri: str = "http://127.0.0.1:5000",
+        mlflow_tracking_uri: str = MLFLOW_DEFAULT_URI,
         task_type: str = "tabular_classification",
     ) -> None:
         self.session_dir = session_dir

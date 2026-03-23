@@ -3,12 +3,12 @@
 import logging
 import os
 import subprocess
-import sys
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+
+import click
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +82,9 @@ def _open_in_editor(path: Path) -> None:
 
     # Fallback: вывод содержимого в терминал
     content = path.read_text(encoding="utf-8")
-    separator = "-" * 80
-    print(f"\n{separator}")
-    print(f"  {path}")
-    print(separator)
-    print(content)
-    print(separator)
-    print("(Отредактируй файл вручную в другом терминале, затем нажми Enter)")
+    click.echo(f"\n  {path}")
+    click.echo(content)
+    click.echo("(Отредактируй файл вручную в другом терминале, затем нажми Enter)")
     input()
 
 
@@ -106,20 +102,22 @@ def _show_program_summary(program_md_path: Path, adversarial_auc: float | None) 
     phase_count = sum(1 for l in lines if l.startswith("### Phase "))
     step_count = sum(1 for l in lines if l.startswith("#### Step "))
 
-    print("\n" + "=" * 70)
-    print("  UAF: Review Research Program")
-    print("=" * 70)
-    print(f"  Файл: {program_md_path}")
-    print(f"  Фазы: {phase_count}  |  Шаги: {step_count}")
+    click.echo(f"\n  UAF: Review Research Program")
+    click.echo(f"  Файл: {program_md_path}")
+    click.echo(f"  Фазы: {phase_count}  |  Шаги: {step_count}")
 
     if adversarial_auc is not None:
         if adversarial_auc >= 0.85:
-            print(f"\n  [!] ПРЕДУПРЕЖДЕНИЕ: AdversarialValidation AUC={adversarial_auc:.3f} >= 0.85")
-            print("      Train/val распределения СИЛЬНО отличаются.")
-            print("      Требуется явное подтверждение (y) для продолжения.")
+            click.echo(
+                f"\n  [!] ПРЕДУПРЕЖДЕНИЕ: AdversarialValidation AUC={adversarial_auc:.3f} >= 0.85"
+            )
+            click.echo("      Train/val распределения СИЛЬНО отличаются.")
+            click.echo("      Требуется явное подтверждение (y) для продолжения.")
         elif adversarial_auc >= 0.6:
-            print(f"\n  [!] Внимание: AdversarialValidation AUC={adversarial_auc:.3f} (умеренное отличие)")
-    print("=" * 70)
+            click.echo(
+                f"\n  [!] Внимание: AdversarialValidation AUC={adversarial_auc:.3f}"
+                " (умеренное отличие)"
+            )
 
     # Выводим program.md
     try:
@@ -130,7 +128,7 @@ def _show_program_summary(program_md_path: Path, adversarial_auc: float | None) 
         console = Console()
         console.print(Markdown(content))
     except ImportError:
-        print(content)
+        click.echo(content)
 
 
 class HumanOversightGate:
@@ -217,8 +215,8 @@ class HumanOversightGate:
             # Валидация структуры
             missing_sections = _validate_program_md(self.program_md_path)
             if missing_sections:
-                print(f"\n  [!] Отсутствуют обязательные секции: {missing_sections}")
-                print("  Исправь program.md перед одобрением.")
+                click.echo(f"\n  [!] Отсутствуют обязательные секции: {missing_sections}")
+                click.echo("  Исправь program.md перед одобрением.")
 
             # Запрос ввода
             prompt = self._build_prompt()
@@ -240,7 +238,7 @@ class HumanOversightGate:
             if answer == "y":
                 # Дополнительное подтверждение при critical adversarial AUC
                 if self.adversarial_auc is not None and self.adversarial_auc >= 0.85:
-                    print(
+                    click.echo(
                         "\n  [!] AdversarialValidation AUC >= 0.85."
                         " Введи 'yes' для явного подтверждения риска:"
                     )
@@ -249,7 +247,7 @@ class HumanOversightGate:
                     except (EOFError, KeyboardInterrupt):
                         confirm = ""
                     if confirm != "yes":
-                        print("  Подтверждение не получено. Вернись к y/n/e.")
+                        click.echo("  Подтверждение не получено. Вернись к y/n/e.")
                         continue
 
                 wait = time.time() - start_time
@@ -277,21 +275,21 @@ class HumanOversightGate:
 
             elif answer == "e":
                 if edit_rounds >= _MAX_EDIT_ROUNDS:
-                    print(f"\n  [!] Достигнут максимум раундов редактирования ({_MAX_EDIT_ROUNDS}).")
-                    print("  Для продолжения введи y или n.")
+                    click.echo(f"\n  [!] Достигнут максимум раундов редактирования ({_MAX_EDIT_ROUNDS}).")
+                    click.echo("  Для продолжения введи y или n.")
                     continue
                 _open_in_editor(self.program_md_path)
                 missing_after = _validate_program_md(self.program_md_path)
                 if missing_after:
-                    print(f"\n  [!] После редактирования отсутствуют секции: {missing_after}")
-                    print("  Исправь и нажми e снова или введи y/n.")
+                    click.echo(f"\n  [!] После редактирования отсутствуют секции: {missing_after}")
+                    click.echo("  Исправь и нажми e снова или введи y/n.")
                 else:
-                    print("\n  Структура program.md корректна.")
+                    click.echo("\n  Структура program.md корректна.")
                 edit_rounds += 1
                 modified = True
 
             else:
-                print("  Введи y (одобрить), n (отклонить) или e (редактировать).")
+                click.echo("  Введи y (одобрить), n (отклонить) или e (редактировать).")
 
         # Исчерпаны раунды редактирования — ждём финального y/n
         while True:

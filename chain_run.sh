@@ -31,7 +31,7 @@ get_metric() {
 import json
 try:
     d = json.load(open('$meta'))
-    v = d.get('$METRIC_NAME') or d.get('roi') or d.get('auc') or -999
+    v = d.get('$METRIC_NAME') or d.get('roi') or d.get('roi_test') or d.get('auc') or -999
     print(v)
 except:
     print(-999)

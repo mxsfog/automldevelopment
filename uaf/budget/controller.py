@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from mlflow.entities import Run
 from mlflow.tracking import MlflowClient
 
 from uaf.budget.convergence import check_convergence_with_llm_signal
@@ -435,7 +436,7 @@ class BudgetController:
             logger.warning("Hard stop инициирован: %s", hard_stop_reason)
             self._execute_hard_stop(hard_stop_reason or "budget_exhausted")
 
-    def _fetch_runs(self) -> list:  # type: ignore[type-arg]
+    def _fetch_runs(self) -> list[Run]:
         """Читает все experiment runs из MLflow.
 
         Returns:
@@ -695,7 +696,7 @@ class BudgetController:
         """
         import hashlib
 
-        hasher = hashlib.md5()
+        hasher = hashlib.sha256()
         for f in sorted(self.data_files):
             if f.exists():
                 stat = f.stat()

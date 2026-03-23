@@ -11,6 +11,8 @@ from typing import Any, Literal
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from uaf import MLFLOW_DEFAULT_URI
+
 logger = logging.getLogger(__name__)
 
 # Базовые типы задач для определения baseline логики
@@ -418,6 +420,29 @@ with mlflow.start_run(run_name="phase5/architecture_innovation") as run:
 
 ---
 
+## Iterative Workflow (КРИТИЧНО — читать первым)
+
+Ты работаешь в **итеративном цикле**. Каждый шаг — отдельная итерация.
+ЗАПРЕЩЕНО писать весь код заранее и запускать один раз.
+
+**Цикл одной итерации:**
+
+1. **Написать код одного шага** — добавить секцию в `experiments/run.py` (через Edit tool, append в конец)
+2. **Запустить** — `python3 experiments/run.py`
+3. **Посмотреть результат** — прочитать stdout, проверить метрики
+4. **Если {{ metric_name }} улучшился** — ОБЯЗАТЕЛЬНО сохранить модель (Model Artifact Protocol)
+5. **Обновить program.md** — записать Result, Conclusion, обновить Iteration Log
+6. **Проверить budget** — прочитать `budget_status.json`, если `hard_stop: true` → завершить
+7. **Спланировать следующий шаг** — на основе результатов ВСЕХ предыдущих шагов
+8. **Перейти к шагу 1**
+
+**Ключевые правила:**
+
+- **Один шаг = одна итерация.** Не пиши Step N+1 пока не увидишь результат Step N.
+- **Каждый следующий шаг строится на предыдущем.** Step 2.2 использует лучшую модель/фичи из Step 2.1, не начинает с нуля.
+- **Накопительный run.py.** Каждый новый шаг ДОБАВЛЯЕТСЯ в конец. Предыдущие шаги остаются (используй guard чтобы не перезапускать тяжёлые шаги повторно).
+- **Не завершай до hard_stop.** После всех фаз — генерируй новые гипотезы (Plateau Research Protocol).
+
 ## Execution Instructions
 
 ВАЖНО: Эти инструкции обязательны к исполнению для каждого шага.
@@ -524,11 +549,14 @@ np.random.seed({{ seed }})
 
 **НЕЛЬЗЯ завершать работу** пока в `budget_status.json` не стоит `hard_stop: true`.
 
-Завершение без `hard_stop` — это ошибка. Если все фазы пройдены, а бюджет ещё есть:
+Завершение без `hard_stop` — это ошибка. Ты должен продолжать итеративный цикл
+(написал шаг → запустил → посмотрел результат → написал следующий шаг) до `hard_stop`.
+
+Если все фазы пройдены, а бюджет ещё есть:
 1. Не пиши "Final Conclusions" и не заканчивай
 2. Перейди к **Plateau Research Protocol** (см. ниже)
-3. Генерируй новые гипотезы, пробуй ансамбли, стекинг, новые фичи
-4. Продолжай до `hard_stop: true`
+3. Генерируй новые гипотезы на основе всех предыдущих результатов
+4. Продолжай итеративный цикл до `hard_stop: true`
 
 Проверять перед КАЖДЫМ экспериментом:
 ```python
@@ -651,10 +679,19 @@ report_lines = [
 Path("leakage_report.md").write_text("\n".join(report_lines))
 ```
 
-### Model Artifact Protocol (ОБЯЗАТЕЛЬНО для chain continuation)
+### Model Artifact Protocol (КРИТИЧНО — без этого chain continuation не работает)
 
-В конце ЛЮБОГО эксперимента, который устанавливает новый лучший {{ metric_name }},
-ОБЯЗАТЕЛЬНО сохрани **полный пайплайн** в `./models/best/` (относительно SESSION_DIR).
+**ОБЯЗАТЕЛЬНО** после КАЖДОГО шага, который улучшает лучший {{ metric_name }}:
+1. Сохрани модель: `model.save_model("./models/best/model.cbm")` (или .lgb/.xgb)
+2. Сохрани pipeline.pkl через joblib/pickle
+3. Сохрани metadata.json с метрикой и параметрами
+
+Без `./models/best/metadata.json` следующая сессия НЕ МОЖЕТ продолжить работу.
+Это самое важное действие — важнее чем ещё один эксперимент.
+
+**Когда сохранять:** после каждого шага где {{ metric_name }} > предыдущего лучшего.
+**Куда:** `./models/best/` (относительно SESSION_DIR).
+**Что:** model file + pipeline.pkl + metadata.json.
 
 Пайплайн должен принимать RAW DataFrame (до любой обработки) и возвращать предсказания.
 Следующая сессия загрузит его и воспроизведёт точный {{ metric_name }} без ручного
@@ -954,6 +991,14 @@ def _load_feature_registry(registry_path: Path | None) -> dict[str, Any]:
     return json.loads(registry_path.read_text())
 
 
+def _features_as_dict(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Приводит features к dict{name: meta} независимо от формата (list/dict)."""
+    features = schema.get("features", {})
+    if isinstance(features, list):
+        return {f.get("name", f"col_{i}"): f for i, f in enumerate(features)}
+    return features
+
+
 def _build_data_summary(schema: dict[str, Any]) -> str:
     """Формирует краткое описание данных из schema.
 
@@ -966,18 +1011,30 @@ def _build_data_summary(schema: dict[str, Any]) -> str:
     if not schema:
         return "data_schema.json не предоставлен."
 
-    splits = schema.get("splits", {})
+    splits = schema.get("splits", [])
     lines = []
-    for name, info in splits.items():
-        n_rows = info.get("n_rows", "?")
-        n_cols = info.get("n_cols", "?")
-        lines.append(f"- {name}: {n_rows} строк, {n_cols} колонок")
+    if isinstance(splits, list):
+        for info in splits:
+            name = info.get("name", "?")
+            n_rows = info.get("n_rows", "?")
+            n_cols = info.get("n_cols", "?")
+            lines.append(f"- {name}: {n_rows} строк, {n_cols} колонок")
+    elif isinstance(splits, dict):
+        for name, info in splits.items():
+            n_rows = info.get("n_rows", "?")
+            n_cols = info.get("n_cols", "?")
+            lines.append(f"- {name}: {n_rows} строк, {n_cols} колонок")
 
-    features = schema.get("features", {})
+    features = schema.get("features", [])
     feature_types: dict[str, int] = {}
-    for _col, meta in features.items():
-        t = meta.get("type", "unknown")
-        feature_types[t] = feature_types.get(t, 0) + 1
+    if isinstance(features, list):
+        for meta in features:
+            t = meta.get("dtype", meta.get("type", "unknown"))
+            feature_types[t] = feature_types.get(t, 0) + 1
+    elif isinstance(features, dict):
+        for _col, meta in features.items():
+            t = meta.get("type", "unknown")
+            feature_types[t] = feature_types.get(t, 0) + 1
 
     if feature_types:
         type_str = ", ".join(f"{v} {k}" for k, v in feature_types.items())
@@ -1038,7 +1095,7 @@ def _generate_feature_hypotheses(
         Список FeatureHypothesis (до max_steps).
     """
     hypotheses: list[FeatureHypothesis] = []
-    features = schema.get("features", {})
+    features = _features_as_dict(schema)
     step_counter = 1
 
     # FG-T-*: временные признаки
@@ -1152,7 +1209,7 @@ class ProgramMdGenerator:
         mlflow_tracking_uri: URI MLflow сервера.
     """
 
-    def __init__(self, session_dir: Path, mlflow_tracking_uri: str = "http://127.0.0.1:5000") -> None:
+    def __init__(self, session_dir: Path, mlflow_tracking_uri: str = MLFLOW_DEFAULT_URI) -> None:
         self.session_dir = session_dir
         self.mlflow_tracking_uri = mlflow_tracking_uri
         self._context_dir = session_dir / "context"
@@ -1307,11 +1364,14 @@ class ProgramMdGenerator:
         }
 
         if schema:
-            ctx["n_rows_train"] = schema.get("splits", {}).get("train", {}).get("n_rows", None)
-            ctx["n_cols"] = schema.get("splits", {}).get("train", {}).get("n_cols", None)
+            splits = schema.get("splits", [])
+            first_split = splits[0] if isinstance(splits, list) and splits else {}
+            ctx["n_rows_train"] = first_split.get("n_rows")
+            ctx["n_cols"] = first_split.get("n_cols")
             ctx["feature_types"] = {}
-            for _col, meta in schema.get("features", {}).items():
-                t = meta.get("type", "unknown")
+            features = _features_as_dict(schema)
+            for _col, meta in features.items():
+                t = meta.get("dtype", meta.get("type", "unknown"))
                 ctx["feature_types"][t] = ctx["feature_types"].get(t, 0) + 1
             ctx["task_hints"] = schema.get("task_hints", {})
 

@@ -3,8 +3,9 @@
 import hashlib
 import json
 import logging
-import signal
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -192,9 +193,6 @@ class DataSchema:
     generated_at: str = ""
 
 
-class _TimeoutError(Exception):
-    """Внутреннее исключение таймаута загрузки."""
-
 
 class DataLoader:
     """Загружает метаданные и sample из датасета с ограничениями.
@@ -246,19 +244,16 @@ class DataLoader:
         logger.info("Загрузка схемы данных: %s (format=%s)", self.train_path, self.fmt)
         start = time.time()
 
-        def _timeout_handler(signum: int, frame: Any) -> None:
-            raise _TimeoutError(f"DataLoader timeout после {_LOAD_TIMEOUT_SECONDS} сек")
-
-        old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-        signal.alarm(_LOAD_TIMEOUT_SECONDS)
-        try:
-            schema = self._load_internal()
-        except _TimeoutError as exc:
-            logger.error("DataLoader timeout (%s сек)", _LOAD_TIMEOUT_SECONDS)
-            raise TimeoutError(f"Загрузка данных превысила {_LOAD_TIMEOUT_SECONDS} сек") from exc
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(self._load_internal)
+            try:
+                schema = future.result(timeout=_LOAD_TIMEOUT_SECONDS)
+            except FuturesTimeout as exc:
+                future.cancel()
+                logger.error("DataLoader timeout (%s сек)", _LOAD_TIMEOUT_SECONDS)
+                raise TimeoutError(
+                    f"Загрузка данных превысила {_LOAD_TIMEOUT_SECONDS} сек"
+                ) from exc
 
         elapsed = time.time() - start
         logger.info("Схема данных загружена за %.1f сек", elapsed)
@@ -546,7 +541,7 @@ class DataLoader:
 
         # Схема хэш: колонки + типы
         schema_str = "|".join(f"{c}:{df[c].dtype}" for c in df.columns)
-        schema_hash = hashlib.md5(schema_str.encode()).hexdigest()
+        schema_hash = hashlib.sha256(schema_str.encode()).hexdigest()
 
         return QualityReport(
             total_rows=len(df),

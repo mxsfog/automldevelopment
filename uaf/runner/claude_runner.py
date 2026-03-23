@@ -7,8 +7,11 @@ import signal
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import IO
+
+from uaf import MLFLOW_DEFAULT_URI
 
 logger = logging.getLogger(__name__)
 
@@ -28,21 +31,12 @@ _DENY_LIST: list[str] = [
 
 # Allow list команд
 _ALLOW_LIST: list[str] = [
-    "Bash(python:*)",
-    "Bash(python3:*)",
-    "Bash(pip:*)",
-    "Bash(pip3:*)",
-    "Bash(uv:*)",
-    "Bash(ruff:*)",
-    "Bash(mlflow:*)",
-    "Bash(dvc add:*)",
-    "Bash(dvc commit:*)",
-    "Bash(git add:*)",
-    "Bash(git commit:*)",
-    "Bash(git status:*)",
-    "Bash(git log:*)",
-    "Bash(git diff:*)",
+    "Bash(*)",
     "Read(*)",
+    "Edit(*)",
+    "Write(*)",
+    "Glob(*)",
+    "Grep(*)",
 ]
 
 
@@ -69,13 +63,15 @@ class ClaudeCodeRunner:
         session_dir: Path,
         session_id: str,
         claude_model: str = "claude-opus-4",
-        mlflow_tracking_uri: str = "http://127.0.0.1:5000",
+        mlflow_tracking_uri: str = MLFLOW_DEFAULT_URI,
         mlflow_experiment_name: str | None = None,
         budget_status_file: Path | None = None,
-        stdout_callback: object = None,
+        stdout_callback: Callable[[str], None] | None = None,
         timeout_seconds: float | None = None,
         fully_autonomous: bool = False,
-        on_start: object = None,
+        on_start: Callable[[int], None] | None = None,
+        max_turns: int | None = None,
+        system_prompt_path: Path | None = None,
     ) -> None:
         self.session_dir = session_dir
         self.session_id = session_id
@@ -86,7 +82,9 @@ class ClaudeCodeRunner:
         self.stdout_callback = stdout_callback
         self.timeout_seconds = timeout_seconds
         self.fully_autonomous = fully_autonomous
-        self.on_start = on_start  # callable(pid: int) — вызывается сразу после старта
+        self.on_start = on_start
+        self.max_turns = max_turns
+        self.system_prompt_path = system_prompt_path
 
         self._process: subprocess.Popen | None = None  # type: ignore[type-arg]
         self._pid_file = session_dir / "claude_pid.txt"
@@ -258,14 +256,20 @@ class ClaudeCodeRunner:
             "haiku": "claude-haiku-4-5-20251001",
         }
         model = model_aliases.get(self.claude_model, self.claude_model)
-        return [
+        cmd = [
             "claude",
             "--model",
             model,
-            "--dangerously-skip-permissions",
-            "-p",
-            _INITIAL_PROMPT,
+            "--output-format",
+            "json",
         ]
+        if self.max_turns is not None:
+            cmd.extend(["--max-turns", str(self.max_turns)])
+        if self.system_prompt_path and self.system_prompt_path.exists():
+            prompt = self.system_prompt_path.read_text(encoding="utf-8")
+            cmd.extend(["--system-prompt", prompt])
+        cmd.extend(["--dangerously-skip-permissions", "-p", _INITIAL_PROMPT])
+        return cmd
 
     def _build_env(self) -> dict[str, str]:
         """Строит окружение для subprocess.
@@ -307,7 +311,7 @@ class ClaudeCodeRunner:
 
                     if self.stdout_callback is not None:
                         try:
-                            self.stdout_callback(line)  # type: ignore[call-arg]
+                            self.stdout_callback(line)
                         except Exception as exc:
                             logger.debug("stdout_callback ошибка: %s", exc)
                     else:

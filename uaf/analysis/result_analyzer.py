@@ -767,8 +767,15 @@ def _analysis_to_dict(analysis: SessionAnalysis) -> dict[str, Any]:
     Returns:
         Словарь готовый к сериализации.
     """
+    best_value: float | None = None
+    if analysis.ranked_runs:
+        best_value = analysis.ranked_runs[0].metrics.get(analysis.target_metric)
+    if best_value is None and analysis.metric_profile:
+        best_value = analysis.metric_profile.best
+
     return {
         "session_id": analysis.session_id,
+        "best_value": best_value,
         "total_runs": analysis.total_runs,
         "completed_runs": analysis.completed_runs,
         "failed_runs": analysis.failed_runs,
