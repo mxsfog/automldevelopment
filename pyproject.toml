@@ -19,6 +19,8 @@ dependencies = [
     "click>=8.1.7,<9",
     "rich>=13.8.0,<14",
     "psutil>=6.0.0,<7",
+    "claude-agent-sdk>=0.1.50,<1",
+    "anyio>=4.0,<5",
 ]
 
 [project.scripts]
@@ -40,6 +42,10 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 [tool.ruff.lint.per-file-ignores]
 # LaTeX/Jinja2 шаблоны содержат длинные строки по природе формата
 "uaf/reporting/latex_templates.py" = ["E501"]
+# Protocol/dataclass files need runtime imports, not TYPE_CHECKING
+"uaf/runner/protocol.py" = ["TCH003"]
+"uaf/runner/tools.py" = ["TCH003"]
+"uaf/runner/agent_sdk_runner.py" = ["TCH003"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

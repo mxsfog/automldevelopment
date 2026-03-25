@@ -75,6 +75,15 @@ def main(ctx: click.Context, verbose: bool) -> None:
     help="Рабочая директория",
 )
 @click.option("--prev-session", default=None, help="ID предыдущей сессии для передачи контекста")
+@click.option(
+    "--runner",
+    type=click.Choice(["subprocess", "agent_sdk"]),
+    default=None,
+    help="Runner backend (default: env UAF_RUNNER_BACKEND или subprocess)",
+)
+@click.option(
+    "--max-turns", type=int, default=200, show_default=True, help="Max agent turns (SDK)"
+)
 @click.pass_context
 def run_cmd(
     ctx: click.Context,
@@ -87,6 +96,8 @@ def run_cmd(
     model: str,
     work_dir: Path,
     prev_session: str | None,
+    runner: str | None,
+    max_turns: int,
 ) -> None:
     """Запустить UAF сессию исследования.
 
@@ -106,6 +117,10 @@ def run_cmd(
     )
 
     try:
+        import os
+
+        runner_backend = runner or os.environ.get("UAF_RUNNER_BACKEND", "subprocess")
+
         controller = ResearchSessionController(
             work_dir=work_dir.resolve(),
             task_path=task_path.resolve(),
@@ -114,6 +129,8 @@ def run_cmd(
             claude_model=model,
             fully_autonomous=autonomous,
             prev_session_id=prev_session,
+            runner_backend=runner_backend,
+            max_turns=max_turns,
         )
 
         # Переопределяем параметры бюджета если переданы через CLI

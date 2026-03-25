@@ -111,6 +111,8 @@ class ResearchSessionController:
         fully_autonomous: bool = False,
         mlflow_tracking_uri: str = MLFLOW_DEFAULT_URI,
         prev_session_id: str | None = None,
+        runner_backend: str = "subprocess",
+        max_turns: int = 200,
     ) -> None:
         self.work_dir = work_dir.resolve()
         self.task_path = task_path.resolve()
@@ -136,6 +138,8 @@ class ResearchSessionController:
         self._data_schema_path: Path | None = None
         self._state_data: SessionStateData | None = None
         self._ruff_report: object | None = None
+        self._runner_backend = runner_backend
+        self._max_turns = max_turns
 
         logger.info(
             "ResearchSessionController инициализирован: session_id=%s, work_dir=%s",
@@ -463,10 +467,25 @@ class ResearchSessionController:
             session_id=self.session_id,
         )
 
-        # ClaudeCodeRunner
+        # Запускаем BudgetController в thread
+        self._budget_controller.start(claude_pid=None)
+
+        try:
+            if self._runner_backend == "agent_sdk":
+                self._run_with_sdk(budget_cfg)
+            else:
+                self._run_with_subprocess(budget_cfg)
+        finally:
+            self._budget_controller.stop()
+
+        self._save_state()
+        logger.info("[EXECUTING] завершён")
+
+    def _run_with_subprocess(self, budget_cfg: dict[str, Any]) -> None:
+        """Запуск через ClaudeCodeRunner (subprocess.Popen)."""
         from uaf.runner.claude_runner import ClaudeCodeRunner
 
-        session_timeout = budget_cfg.get("max_time_hours", 24.0) * 3600 + 300  # +5 мин буфер
+        session_timeout = budget_cfg.get("max_time_hours", 24.0) * 3600 + 300
         self._claude_runner = ClaudeCodeRunner(
             session_dir=self._session_dir,
             session_id=self.session_id,
@@ -474,29 +493,64 @@ class ResearchSessionController:
             mlflow_tracking_uri=self.mlflow_tracking_uri,
             mlflow_experiment_name=f"uaf/{self.session_id}",
             budget_status_file=self._budget_status_file,
-            stdout_callback=lambda line: self._budget_controller.update_stdout_time(),  # type: ignore[union-attr]
+            stdout_callback=lambda line: self._budget_controller.update_stdout_time(),
             timeout_seconds=session_timeout,
             fully_autonomous=self.fully_autonomous,
-            on_start=lambda pid: self._budget_controller.set_claude_pid(pid),  # type: ignore[union-attr]
+            on_start=lambda pid: self._budget_controller.set_claude_pid(pid),
         )
-
-        # Запускаем BudgetController в thread
-        self._budget_controller.start(claude_pid=None)
-
         try:
             return_code = self._claude_runner.run()
-            logger.info("[EXECUTING] Claude Code завершился: return_code=%d", return_code)
+            logger.info(
+                "[EXECUTING] Claude Code subprocess завершился: rc=%d", return_code
+            )
         except FileNotFoundError:
             logger.error(
-                "[EXECUTING] claude CLI не найден в PATH. "
-                "Установите Claude Code: https://claude.ai/code"
+                "[EXECUTING] claude CLI не найден. Установите: https://claude.ai/code"
             )
             raise
-        finally:
-            self._budget_controller.stop()
 
-        self._save_state()
-        logger.info("[EXECUTING] завершён")
+    def _run_with_sdk(self, budget_cfg: dict[str, Any]) -> None:
+        """Запуск через AgentSDKRunner (claude-agent-sdk)."""
+        from uaf.runner.agent_sdk_runner import AgentSDKRunner
+
+        # Прочитать program.md как system prompt
+        program_md_path = self._session_dir / "program.md"
+        system_prompt = None
+        if program_md_path.exists():
+            system_prompt = program_md_path.read_text(encoding="utf-8")
+
+        # Путь к train данным для валидации pipeline
+        task_data = self._task_config.get("data", {})
+        train_path = None
+        for f in task_data.get("files", []):
+            if f.get("role") == "main":
+                train_path = Path(f["path"])
+                if not train_path.is_absolute():
+                    train_path = self.work_dir / train_path
+                break
+
+        metric_cfg = self._task_config.get("metric", {})
+
+        runner = AgentSDKRunner(
+            session_dir=self._session_dir,
+            session_id=self.session_id,
+            claude_model=self.claude_model,
+            mlflow_tracking_uri=self.mlflow_tracking_uri,
+            mlflow_experiment_name=f"uaf/{self.session_id}",
+            mlflow_experiment_id=self._mlflow_experiment_id,
+            budget_status_file=self._budget_status_file,
+            max_turns=self._max_turns,
+            system_prompt=system_prompt,
+            target_metric=metric_cfg.get("name", "metric"),
+            train_data_path=train_path,
+        )
+
+        import anyio
+
+        messages = anyio.from_thread.run(
+            runner._run_async, "Start the research session", self._session_dir
+        )
+        logger.info("[EXECUTING] Agent SDK завершился: %d messages", len(messages))
 
     def _do_analyzing(self) -> None:
         """ANALYZING: ResultAnalyzer + SystemErrorAnalyzer + RuffEnforcer."""

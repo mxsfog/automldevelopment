@@ -464,12 +464,19 @@ mlflow.set_experiment(EXPERIMENT_NAME)
 with mlflow.start_run(run_name="{phase}/{step}") as run:
     mlflow.set_tag("session_id", SESSION_ID)
     mlflow.set_tag("type", "experiment")
+    mlflow.set_tag("step", "{step_id}")
+    mlflow.set_tag("hypothesis", "{description}")
+    mlflow.set_tag("strategy_category", "{model_architecture|feature_engineering|training_strategy|data_strategy}")
     mlflow.set_tag("status", "running")
     mlflow.log_params({...})
     # ... эксперимент ...
     mlflow.log_metrics({...})
+    # ОБЯЗАТЕЛЬНО: сохранить OOF predictions для ensemble selection
+    np.save("oof_predictions.npy", oof_preds)
+    mlflow.log_artifact("oof_predictions.npy")
     mlflow.log_artifact(__file__)
     mlflow.set_tag("status", "success")
+    mlflow.set_tag("conclusion", "{what worked/failed and why}")
     mlflow.set_tag("convergence_signal", "{0.0-1.0}")
 ```
 

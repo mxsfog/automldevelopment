@@ -170,6 +170,7 @@ class BudgetController:
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._claude_pid: int | None = None
+        self._session_dir: Path | None = budget_status_path.parent / "sessions" / session_id
         self._session_start_time = time.time()
         self._last_stdout_time = time.time()
 
@@ -659,11 +660,26 @@ class BudgetController:
             return False
 
     def _is_claude_alive(self) -> bool:
-        """Проверяет жив ли процесс Claude Code.
+        """Проверяет жив ли агент: heartbeat file (SDK) или PID (subprocess).
 
         Returns:
-            True если процесс жив или PID не задан.
+            True если агент жив или способ проверки недоступен.
         """
+        # SDK mode: проверка heartbeat file
+        heartbeat = self._session_dir / ".heartbeat" if self._session_dir else None
+        if heartbeat and heartbeat.exists():
+            try:
+                import json as _json
+
+                data = _json.loads(heartbeat.read_text())
+                age = time.time() - data["timestamp"]
+                tool_name = data.get("tool", "")
+                max_age = 600 if "python" in tool_name.lower() else 300
+                return age < max_age
+            except Exception:
+                return True
+
+        # Subprocess mode: проверка PID
         if self._claude_pid is None:
             return True
         try:
@@ -672,7 +688,7 @@ class BudgetController:
         except ProcessLookupError:
             return False
         except PermissionError:
-            return True  # процесс существует, нет прав
+            return True
 
     def _check_data_quality(self) -> DataQuality:
         """Проверяет неизменность входных данных.
