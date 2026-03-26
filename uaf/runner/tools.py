@@ -27,6 +27,7 @@ def create_uaf_tools(
     experiment_id: str | None = None,
     target_metric: str = "metric",
     train_data_path: Path | None = None,
+    leakage_high_proba: bool = False,
 ) -> Any:
     """Создаёт MCP сервер с UAF custom tools.
 
@@ -244,10 +245,113 @@ def create_uaf_tools(
         logger.info("[TOOL] %s%s", msg, warning)
         return _success(msg + warning)
 
-    server = create_sdk_mcp_server(
-        "uaf-tools",
-        tools=[save_pipeline, check_budget, get_experiment_memory, log_experiment_result],
+    @tool(
+        "check_leakage",
+        "MANDATORY after each experiment step. Analyze your code for data leakage. "
+        "Think step by step about whether test data influenced any decisions.",
+        {
+            "step_id": str,
+            "val_metric": float,
+            "test_metric": float,
+            "threshold_source": str,
+            "filter_source": str,
+            "code_summary": str,
+        },
     )
+    async def check_leakage(args: dict[str, Any]) -> dict[str, Any]:
+        issues: list[str] = []
+        severity = "clean"
+
+        val_m = args["val_metric"]
+        test_m = args["test_metric"]
+        thr_src = args["threshold_source"].lower()
+        flt_src = args["filter_source"].lower()
+
+        # 1. Test metric vs val metric ratio
+        if val_m > 0 and test_m > 3 * val_m:
+            issues.append(
+                f"test ({test_m:.2f}) > 3x val ({val_m:.2f}) — likely leakage"
+            )
+            severity = "critical"
+        elif val_m > 0 and test_m > 2 * val_m:
+            issues.append(
+                f"test ({test_m:.2f}) > 2x val ({val_m:.2f}) — suspicious"
+            )
+            severity = "warning"
+
+        # 2. Threshold source
+        if "test" in thr_src:
+            issues.append(
+                f"threshold selected on TEST data ('{thr_src}') — LEAKAGE"
+            )
+            severity = "critical"
+
+        # 3. Filter source
+        if "test" in flt_src:
+            issues.append(
+                f"filter/segment selected on TEST data ('{flt_src}') — LEAKAGE"
+            )
+            severity = "critical"
+
+        # 4. Code summary analysis
+        code = args["code_summary"].lower()
+        leaky_patterns = [
+            ("test_roi > ", "comparing against test ROI for decisions"),
+            ("if test", "conditional logic based on test results"),
+            ("best_test", "tracking best test metric"),
+            ("test_result[", "indexing test results for optimization"),
+        ]
+        for pattern, desc in leaky_patterns:
+            if pattern in code:
+                issues.append(f"code pattern '{pattern}' — {desc}")
+                severity = "critical"
+
+        result: dict[str, Any] = {
+            "step": args["step_id"],
+            "severity": severity,
+            "issues": issues,
+            "verdict": "CLEAN" if not issues else "LEAKAGE DETECTED",
+        }
+
+        # Если leakage_high_proba — добавить инструкцию для deep thinking
+        if leakage_high_proba and severity != "clean":
+            result["action_required"] = (
+                "STOP. Use sequential thinking (10 steps) to analyze:\n"
+                "1. Where exactly does test data influence decisions?\n"
+                "2. Is threshold selected on val ONLY?\n"
+                "3. Are filters/segments selected on val ONLY?\n"
+                "4. Is model saved based on val metric, not test?\n"
+                "5. Are there any for-loops sweeping test metrics?\n"
+                "6. Does feature selection use test performance?\n"
+                "7. Is there temporal leakage in features?\n"
+                "8. Are CV folds properly temporal (no future data)?\n"
+                "9. What is the CV mean ROI vs test ROI ratio?\n"
+                "10. Final verdict: is this result trustworthy?\n"
+                "DO NOT proceed until you complete this analysis."
+            )
+        elif leakage_high_proba:
+            result["action_required"] = (
+                "Result looks clean. Brief sanity check:\n"
+                "- Threshold from val? Yes/No\n"
+                "- Filters from val? Yes/No\n"
+                "- Model saved by val metric? Yes/No"
+            )
+
+        if issues:
+            logger.warning(
+                "[TOOL] Leakage check step %s: %s — %s",
+                args["step_id"], severity, "; ".join(issues),
+            )
+        else:
+            logger.info("[TOOL] Leakage check step %s: CLEAN", args["step_id"])
+
+        return _success(json.dumps(result, ensure_ascii=False))
+
+    all_tools = [
+        save_pipeline, check_budget, get_experiment_memory,
+        log_experiment_result, check_leakage,
+    ]
+    server = create_sdk_mcp_server("uaf-tools", tools=all_tools)
     return server
 
 

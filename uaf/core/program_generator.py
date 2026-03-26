@@ -430,11 +430,12 @@ with mlflow.start_run(run_name="phase5/architecture_innovation") as run:
 1. **Написать код одного шага** — добавить секцию в `experiments/run.py` (через Edit tool, append в конец)
 2. **Запустить** — `python3 experiments/run.py`
 3. **Посмотреть результат** — прочитать stdout, проверить метрики
-4. **Если {{ metric_name }} улучшился** — ОБЯЗАТЕЛЬНО сохранить модель (Model Artifact Protocol)
-5. **Обновить program.md** — записать Result, Conclusion, обновить Iteration Log
-6. **Проверить budget** — прочитать `budget_status.json`, если `hard_stop: true` → завершить
-7. **Спланировать следующий шаг** — на основе результатов ВСЕХ предыдущих шагов
-8. **Перейти к шагу 1**
+4. **ОБЯЗАТЕЛЬНО вызвать check_leakage** — передать val_metric, test_metric, threshold_source, filter_source, code_summary. Если severity != clean — СТОП, исправить leakage прежде чем продолжить.
+5. **Если {{ metric_name }} улучшился** — сохранить модель (Model Artifact Protocol)
+6. **Обновить program.md** — записать Result, Conclusion, обновить Iteration Log
+7. **Проверить budget** — вызвать check_budget, если can_stop=true → завершить
+8. **Спланировать следующий шаг** — на основе результатов ВСЕХ предыдущих шагов
+9. **Перейти к шагу 1**
 
 **Ключевые правила:**
 

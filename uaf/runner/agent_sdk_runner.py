@@ -46,6 +46,7 @@ class AgentSDKRunner:
         system_prompt: str | None = None,
         target_metric: str = "metric",
         train_data_path: Path | None = None,
+        leakage_high_proba: bool = False,
     ) -> None:
         self.session_dir = session_dir
         self.session_id = session_id
@@ -58,6 +59,7 @@ class AgentSDKRunner:
         self.system_prompt = system_prompt
         self.target_metric = target_metric
         self.train_data_path = train_data_path
+        self.leakage_high_proba = leakage_high_proba
 
         self._client: ClaudeSDKClient | None = None
         self._hook_state = HookState()
@@ -80,6 +82,7 @@ class AgentSDKRunner:
             experiment_id=self.mlflow_experiment_id,
             target_metric=self.target_metric,
             train_data_path=self.train_data_path,
+            leakage_high_proba=self.leakage_high_proba,
         )
 
         env_vars = {
@@ -91,12 +94,36 @@ class AgentSDKRunner:
             "UAF_TARGET_METRIC": self.target_metric,
         }
 
+        # Маппинг алиасов — bundled CLI требует полные model ID
+        model_aliases: dict[str, str] = {
+            "claude-opus-4": "claude-opus-4-6",
+            "opus": "claude-opus-4-6",
+            "sonnet": "claude-sonnet-4-6",
+            "haiku": "claude-haiku-4-5",
+        }
+        resolved_model = model_aliases.get(self.claude_model, self.claude_model)
+
+        short_system = (
+            "You are an autonomous ML researcher. "
+            "Work iteratively: one step at a time, run, analyze, then next. "
+            "Never stop until check_budget returns can_stop=true."
+        )
+
         options = ClaudeAgentOptions(
-            model=self.claude_model,
+            model=resolved_model,
             cwd=str(session_dir),
-            system_prompt=self.system_prompt,
+            system_prompt=short_system,
             max_turns=self.max_turns,
             permission_mode="acceptEdits",
+            allowed_tools=[
+                "Bash", "Read", "Edit", "Write", "Glob", "Grep",
+                "WebSearch", "WebFetch",
+                "mcp__uaf-tools__save_pipeline",
+                "mcp__uaf-tools__check_budget",
+                "mcp__uaf-tools__get_experiment_memory",
+                "mcp__uaf-tools__log_experiment_result",
+                "mcp__uaf-tools__check_leakage",
+            ],
             mcp_servers={"uaf-tools": uaf_tools_server},
             hooks={
                 "PreToolUse": [
@@ -108,7 +135,11 @@ class AgentSDKRunner:
                 "PostToolUse": [
                     HookMatcher(
                         matcher=".*",
-                        hooks=[create_save_reminder_hook(self._hook_state, self.max_turns)],
+                        hooks=[
+                            create_save_reminder_hook(
+                                self._hook_state, self.max_turns
+                            )
+                        ],
                     )
                 ],
             },
@@ -137,7 +168,9 @@ class AgentSDKRunner:
                                     AgentMessage(
                                         role="assistant",
                                         content=block.text,
-                                        metadata={"usage": message.usage or {}},
+                                        metadata={
+                                            "usage": message.usage or {}
+                                        },
                                     )
                                 )
 
@@ -148,8 +181,12 @@ class AgentSDKRunner:
                                 content=message.result or "",
                                 metadata={
                                     "stop_reason": message.stop_reason,
-                                    "num_turns": getattr(message, "num_turns", None),
-                                    "total_cost_usd": getattr(message, "total_cost_usd", None),
+                                    "num_turns": getattr(
+                                        message, "num_turns", None
+                                    ),
+                                    "total_cost_usd": getattr(
+                                        message, "total_cost_usd", None
+                                    ),
                                 },
                             )
                         )

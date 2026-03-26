@@ -467,16 +467,20 @@ class ResearchSessionController:
             session_id=self.session_id,
         )
 
-        # Запускаем BudgetController в thread
-        self._budget_controller.start(claude_pid=None)
-
-        try:
-            if self._runner_backend == "agent_sdk":
+        if self._runner_backend == "agent_sdk":
+            # SDK mode: BudgetController не запускаем заранее —
+            # его HTTP polling конфликтует с MCP server initialization
+            try:
                 self._run_with_sdk(budget_cfg)
-            else:
+            finally:
+                pass
+        else:
+            # Subprocess mode: BudgetController нужен для мониторинга PID
+            self._budget_controller.start(claude_pid=None)
+            try:
                 self._run_with_subprocess(budget_cfg)
-        finally:
-            self._budget_controller.stop()
+            finally:
+                self._budget_controller.stop()
 
         self._save_state()
         logger.info("[EXECUTING] завершён")
@@ -531,6 +535,9 @@ class ResearchSessionController:
 
         metric_cfg = self._task_config.get("metric", {})
 
+        leakage_cfg = self._task_config.get("leakage_prevention", {})
+        leakage_high_proba = leakage_cfg.get("leakage_high_proba", False)
+
         runner = AgentSDKRunner(
             session_dir=self._session_dir,
             session_id=self.session_id,
@@ -543,12 +550,15 @@ class ResearchSessionController:
             system_prompt=system_prompt,
             target_metric=metric_cfg.get("name", "metric"),
             train_data_path=train_path,
+            leakage_high_proba=leakage_high_proba,
         )
 
         import anyio
 
-        messages = anyio.from_thread.run(
-            runner._run_async, "Start the research session", self._session_dir
+        messages = anyio.run(
+            runner._run_async,
+            "Read program.md and start the research session",
+            self._session_dir,
         )
         logger.info("[EXECUTING] Agent SDK завершился: %d messages", len(messages))
 
