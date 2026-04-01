@@ -468,12 +468,11 @@ class ResearchSessionController:
         )
 
         if self._runner_backend == "agent_sdk":
-            # SDK mode: BudgetController не запускаем заранее —
-            # его HTTP polling конфликтует с MCP server initialization
+            self._budget_controller.start(claude_pid=None)
             try:
                 self._run_with_sdk(budget_cfg)
             finally:
-                pass
+                self._budget_controller.stop()
         else:
             # Subprocess mode: BudgetController нужен для мониторинга PID
             self._budget_controller.start(claude_pid=None)
@@ -555,12 +554,86 @@ class ResearchSessionController:
 
         import anyio
 
-        messages = anyio.run(
-            runner._run_async,
-            "Read program.md and start the research session",
-            self._session_dir,
+        # Chunked execution: BudgetController polling между chunks
+        turns_per_chunk = min(50, self._max_turns)
+        session_id: str | None = None
+        total_messages = 0
+        chunk_num = 0
+        max_chunks = max(1, self._max_turns // turns_per_chunk + 2)
+
+        for chunk_num in range(1, max_chunks + 1):
+            prompt = (
+                "Read program.md and start the research session"
+                if chunk_num == 1
+                else "Continue from where you left off"
+            )
+
+            messages = anyio.run(
+                runner.run_chunk,
+                prompt,
+                self._session_dir,
+                session_id,
+                turns_per_chunk,
+            )
+            total_messages += len(messages)
+
+            # Capture session_id для resume
+            for m in messages:
+                sid = m.metadata.get("session_id")
+                if sid:
+                    session_id = sid
+
+            # Определить stop reason
+            stop_reason = None
+            for m in reversed(messages):
+                sr = m.metadata.get("stop_reason")
+                if sr:
+                    stop_reason = sr
+                    break
+
+            logger.info(
+                "[EXECUTING] Chunk %d: %d messages, stop=%s, session=%s",
+                chunk_num, len(messages), stop_reason, session_id,
+            )
+
+            # BudgetController poll между chunks
+            if self._budget_controller:
+                try:
+                    self._budget_controller._poll_once()
+                except Exception as exc:
+                    logger.warning("[EXECUTING] Budget poll failed: %s", exc)
+
+            # Условия завершения
+            if stop_reason == "end_turn":
+                logger.info("[EXECUTING] Agent finished naturally")
+                break
+            if stop_reason and "error" in str(stop_reason):
+                logger.warning("[EXECUTING] Agent error: %s", stop_reason)
+                break
+            if any(m.role == "error" for m in messages):
+                logger.warning("[EXECUTING] Agent returned error message")
+                break
+
+            # Проверить hard_stop
+            if self._budget_status_file.exists():
+                try:
+                    status = json.loads(
+                        self._budget_status_file.read_text()
+                    )
+                    if status.get("hard_stop"):
+                        logger.info("[EXECUTING] hard_stop detected")
+                        break
+                except Exception:
+                    pass
+
+            if not session_id:
+                logger.warning("[EXECUTING] No session_id — cannot resume")
+                break
+
+        logger.info(
+            "[EXECUTING] Agent SDK: %d chunks, %d total messages",
+            chunk_num, total_messages,
         )
-        logger.info("[EXECUTING] Agent SDK завершился: %d messages", len(messages))
 
     def _do_analyzing(self) -> None:
         """ANALYZING: ResultAnalyzer + SystemErrorAnalyzer + RuffEnforcer."""

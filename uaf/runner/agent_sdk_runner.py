@@ -69,11 +69,35 @@ class AgentSDKRunner:
         """Sync wrapper для вызова из _do_executing."""
         return anyio.from_thread.run(self._run_async, prompt, session_dir or self.session_dir)
 
+    async def run_chunk(
+        self,
+        prompt: str,
+        session_dir: Path,
+        resume_id: str | None = None,
+        chunk_max_turns: int | None = None,
+    ) -> list[AgentMessage]:
+        """Запустить один chunk агента с возможностью resume.
+
+        Args:
+            prompt: промпт для агента.
+            session_dir: рабочая директория.
+            resume_id: session_id для resume (None = новая сессия).
+            chunk_max_turns: max_turns для этого chunk (None = self.max_turns).
+        """
+        return await self._run_async(
+            prompt, session_dir, resume_id, chunk_max_turns
+        )
+
     async def _run_async(
-        self, prompt: str, session_dir: Path
+        self,
+        prompt: str,
+        session_dir: Path,
+        resume_id: str | None = None,
+        chunk_max_turns: int | None = None,
     ) -> list[AgentMessage]:
         """Запустить агента через ClaudeSDKClient с custom tools."""
         messages: list[AgentMessage] = []
+        effective_max_turns = chunk_max_turns or self.max_turns
 
         uaf_tools_server = create_uaf_tools(
             session_dir=session_dir,
@@ -92,6 +116,8 @@ class AgentSDKRunner:
             "UAF_SESSION_DIR": str(session_dir),
             "UAF_BUDGET_STATUS_FILE": str(self.budget_status_file),
             "UAF_TARGET_METRIC": self.target_metric,
+            # Workaround SDK Issue #730: stdin timeout kills hooks/MCP after 60s
+            "CLAUDE_CODE_STREAM_CLOSE_TIMEOUT": "3600000",
         }
 
         # Маппинг алиасов — bundled CLI требует полные model ID
@@ -109,12 +135,17 @@ class AgentSDKRunner:
             "Never stop until check_budget returns can_stop=true."
         )
 
+        resume_opts: dict[str, Any] = {}
+        if resume_id:
+            resume_opts["resume"] = resume_id
+
         options = ClaudeAgentOptions(
             model=resolved_model,
             cwd=str(session_dir),
             system_prompt=short_system,
-            max_turns=self.max_turns,
+            max_turns=effective_max_turns,
             permission_mode="acceptEdits",
+            **resume_opts,
             allowed_tools=[
                 "Bash", "Read", "Edit", "Write", "Glob", "Grep",
                 "WebSearch", "WebFetch",
@@ -181,6 +212,9 @@ class AgentSDKRunner:
                                 content=message.result or "",
                                 metadata={
                                     "stop_reason": message.stop_reason,
+                                    "session_id": getattr(
+                                        message, "session_id", None
+                                    ),
                                     "num_turns": getattr(
                                         message, "num_turns", None
                                     ),
@@ -191,8 +225,9 @@ class AgentSDKRunner:
                             )
                         )
                         logger.info(
-                            "[SDK] Agent finished: stop_reason=%s",
+                            "[SDK] Chunk finished: stop=%s, session=%s",
                             message.stop_reason,
+                            getattr(message, "session_id", "?"),
                         )
 
                     elif isinstance(message, SystemMessage):
